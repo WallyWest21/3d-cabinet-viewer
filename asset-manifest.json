@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/3d-cabinet-viewer/static/css/main.77f8be92.css",
+    "main.js": "/3d-cabinet-viewer/static/js/main.aface35c.js",
+    "static/js/453.04fa758f.chunk.js": "/3d-cabinet-viewer/static/js/453.04fa758f.chunk.js",
+    "index.html": "/3d-cabinet-viewer/index.html",
+    "main.77f8be92.css.map": "/3d-cabinet-viewer/static/css/main.77f8be92.css.map",
+    "main.aface35c.js.map": "/3d-cabinet-viewer/static/js/main.aface35c.js.map",
+    "453.04fa758f.chunk.js.map": "/3d-cabinet-viewer/static/js/453.04fa758f.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.77f8be92.css",
+    "static/js/main.aface35c.js"
+  ]
+}
