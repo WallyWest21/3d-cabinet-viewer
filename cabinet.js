@@ -31,13 +31,16 @@ function init() {
     // Create camera
     camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
     
-    // Create renderer with enhanced settings
+    // Create renderer with enhanced settings optimized for mobile
     const canvas = document.getElementById('canvas');
     renderer = new THREE.WebGLRenderer({ 
         canvas: canvas, 
-        antialias: true,
+        antialias: window.innerWidth > 768, // Reduce antialiasing on mobile for performance
         powerPreference: "high-performance"
     });
+    
+    // Mobile-optimized pixel ratio
+    renderer.setPixelRatio(window.innerWidth <= 768 ? Math.min(window.devicePixelRatio, 2) : window.devicePixelRatio);
     
     // Enable shadows with enhanced settings
     renderer.shadowMap.enabled = true;
@@ -50,10 +53,31 @@ function init() {
     // Enable physically correct lights
     renderer.physicallyCorrectLights = true;
 
-    // Create controls
+    // Create controls with mobile optimization
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
+    
+    // Mobile-friendly controls
+    controls.enableZoom = true;
+    controls.enableRotate = true;
+    controls.enablePan = true;
+    
+    // Touch sensitivity for mobile
+    controls.rotateSpeed = 1.0;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 0.8;
+    
+    // Limit zoom and rotation for better mobile experience
+    controls.minDistance = 15;
+    controls.maxDistance = 50;
+    controls.maxPolarAngle = Math.PI; // Allow full rotation
+    
+    // Touch-friendly settings
+    controls.touches = {
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN
+    };
 
     // Create materials with PBR
     createPBRMaterials();
@@ -81,11 +105,19 @@ function init() {
     // Start animation loop
     animate();
     
-    // Add resize listener
-    window.addEventListener('resize', onWindowResize);
-    
-    // Initial resize
-    onWindowResize();
+    // Add mobile touch event listeners
+    if (window.innerWidth <= 768) {
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // Prevent default touch behaviors like scrolling
+        }, { passive: false });
+        
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault(); // Prevent page scrolling while interacting with 3D model
+        }, { passive: false });
+    }
+
+    // Add window resize listener
+    window.addEventListener('resize', onWindowResize, false);
 }
 
 function updateCameraAndCabinet() {
@@ -878,6 +910,30 @@ function onWindowResize() {
     camera.aspect = rect.width / rect.height;
     camera.updateProjectionMatrix();
     renderer.setSize(rect.width, rect.height);
+    
+    // Mobile-specific adjustments
+    if (window.innerWidth <= 768) {
+        // Optimize for mobile devices
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        // Adjust camera for mobile viewing
+        if (controls) {
+            controls.minDistance = 12;
+            controls.maxDistance = 40;
+            controls.rotateSpeed = 0.8;
+            controls.zoomSpeed = 1.0;
+        }
+    } else {
+        // Desktop settings
+        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        if (controls) {
+            controls.minDistance = 15;
+            controls.maxDistance = 50;
+            controls.rotateSpeed = 1.0;
+            controls.zoomSpeed = 1.2;
+        }
+    }
     
     // Reinitialize 2D views on resize
     setTimeout(() => {

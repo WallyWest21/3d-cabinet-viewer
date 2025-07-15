@@ -2,26 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Pine Wood Cabinet 3D Model</title>
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             font-family: 'Arial', sans-serif;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         
         .card-container {
             perspective: 1000px;
             width: 95vw;
             max-width: 1200px;
-            height: 80vh;
-            min-height: 600px;
+            height: 85vh;
+            min-height: 500px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+            
+            .card-container {
+                width: 98vw;
+                height: 90vh;
+                min-height: 400px;
+            }
         }
         
         .card {
@@ -61,20 +80,38 @@
         }
         
         .card-header {
-            padding: 20px;
+            padding: 15px;
             border-bottom: 1px solid rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: rgba(255, 255, 255, 0.8);
             border-radius: 20px 20px 0 0;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .card-title {
             margin: 0;
             color: #333;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 600;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        @media (max-width: 768px) {
+            .card-header {
+                padding: 10px;
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .card-title {
+                font-size: 18px;
+                min-width: auto;
+                margin-bottom: 5px;
+            }
         }
         
         .flip-button {
@@ -93,6 +130,16 @@
         .flip-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .flip-button {
+                padding: 12px 24px;
+                font-size: 16px;
+                border-radius: 30px;
+                min-height: 48px;
+                min-width: 120px;
+            }
         }
         
         .canvas-container {
@@ -166,6 +213,29 @@
             box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
         }
         
+        @media (max-width: 768px) {
+            .controls-panel {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                width: auto;
+                padding: 12px;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+            }
+            
+            .control-button {
+                flex: 1;
+                min-width: 80px;
+                margin: 0;
+                padding: 12px 8px;
+                font-size: 14px;
+                min-height: 44px;
+            }
+        }
+        
         /* 2D View Styles */
         .technical-drawing {
             display: grid;
@@ -192,6 +262,26 @@
             justify-content: center;
             position: relative;
             min-height: 150px;
+        }
+        
+        @media (max-width: 768px) {
+            .technical-drawing {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+                gap: 15px;
+                padding: 10px;
+            }
+            
+            .views-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(6, 200px);
+                gap: 10px;
+            }
+            
+            .view-panel {
+                padding: 10px;
+                min-height: 180px;
+            }
         }
         
         .view-title {
@@ -249,6 +339,23 @@
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .dimensions-panel {
+                padding: 15px;
+                margin: 0 5px;
+            }
+            
+            .dimensions-title {
+                font-size: 16px;
+                margin-bottom: 15px;
+            }
+            
+            .dimension-input {
+                padding: 12px;
+                font-size: 16px;
+            }
         }
         
         .update-button {
