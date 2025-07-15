@@ -1,19 +1,27 @@
-// Enhanced Cabinet 3D Model with Three.js PBR Materials
+// Enhanced Cabinet 3D Model with Card View and 2D Technical Drawing
 let scene, camera, renderer, controls;
 let cabinet, door, doorHandle;
 let isDoorOpen = false;
 let isWireframe = false;
 
+// Cabinet dimensions (editable)
+let cabinetDimensions = {
+    width: 20,
+    depth: 20,
+    height: 30,
+    panelThickness: 0.75,
+    ceilingHeight: 8,
+    material: 'Pine Wood'
+};
+
 // Dimensions in Three.js units (inches converted to a suitable scale)
 const SCALE = 0.1; // Scale factor for better viewing
-const CABINET_WIDTH = 20 * SCALE;
-const CABINET_DEPTH = 20 * SCALE;
-const CABINET_HEIGHT = 30 * SCALE;
-const PANEL_THICKNESS = 0.75 * SCALE;
-const CEILING_HEIGHT = 96 * SCALE; // 8 feet in inches
 
 // Materials
 let pineMaterial, handleMaterial, floorMaterial;
+
+// 2D Drawing contexts
+let viewContexts = {};
 
 function init() {
     // Create scene
@@ -21,17 +29,15 @@ function init() {
     scene.background = new THREE.Color(0xf5f5f5);
 
     // Create camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(6, 4, 6);
-
+    camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    
     // Create renderer with enhanced settings
+    const canvas = document.getElementById('canvas');
     renderer = new THREE.WebGLRenderer({ 
-        canvas: document.getElementById('canvas'), 
+        canvas: canvas, 
         antialias: true,
         powerPreference: "high-performance"
     });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
     
     // Enable shadows with enhanced settings
     renderer.shadowMap.enabled = true;
@@ -48,7 +54,6 @@ function init() {
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.target.set(0, CABINET_HEIGHT / 2, 0);
 
     // Create materials with PBR
     createPBRMaterials();
@@ -62,47 +67,75 @@ function init() {
     // Create cabinet
     createCabinet();
 
-    // Position cabinet so top aligns with ceiling
-    const cabinetGroup = scene.getObjectByName('cabinetGroup');
-    cabinetGroup.position.y = CEILING_HEIGHT - CABINET_HEIGHT;
+    // Position camera and controls
+    updateCameraAndCabinet();
+
+    // Don't initialize 2D views immediately - wait until card is flipped
+    // initialize2DViews();
 
     // Start animation loop
     animate();
     
     // Add resize listener
     window.addEventListener('resize', onWindowResize);
+    
+    // Initial resize
+    onWindowResize();
+}
+
+function updateCameraAndCabinet() {
+    const scaledHeight = cabinetDimensions.height * SCALE;
+    const scaledCeiling = cabinetDimensions.ceilingHeight * 12 * SCALE; // Convert feet to inches then scale
+    
+    // Position cabinet so top aligns with ceiling
+    if (cabinet) {
+        scene.remove(cabinet);
+    }
+    createCabinet();
+    
+    const cabinetGroup = scene.getObjectByName('cabinetGroup');
+    if (cabinetGroup) {
+        cabinetGroup.position.y = scaledCeiling - scaledHeight;
+    }
+    
+    // Update camera position based on cabinet size
+    const maxDim = Math.max(cabinetDimensions.width, cabinetDimensions.depth, cabinetDimensions.height) * SCALE;
+    camera.position.set(maxDim * 0.8, maxDim * 0.6, maxDim * 0.8);
+    controls.target.set(0, scaledHeight / 2, 0);
+    controls.update();
 }
 
 function createPBRMaterials() {
     // Enhanced Pine Wood PBR Material
     pineMaterial = new THREE.MeshStandardMaterial({
         name: 'PineWood',
-        color: new THREE.Color(0.87, 0.72, 0.53), // Pine wood color
-        roughness: 0.8, // Wood has high roughness
-        metalness: 0.0, // Wood is not metallic
-        normalScale: new THREE.Vector2(0.5, 0.5), // Subtle normal mapping effect
+        color: getMaterialColor(cabinetDimensions.material),
+        roughness: 0.8,
+        metalness: 0.0,
+        normalScale: new THREE.Vector2(0.5, 0.5),
         transparent: false,
         side: THREE.DoubleSide
     });
 
-    // Add subtle wood grain using a simple noise pattern
+    // Add wood grain texture
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
     const context = canvas.getContext('2d');
     
-    // Create wood grain pattern
     const imageData = context.createImageData(512, 512);
+    const materialColor = getMaterialColor(cabinetDimensions.material);
+    
     for (let i = 0; i < imageData.data.length; i += 4) {
         const x = (i / 4) % 512;
         const y = Math.floor((i / 4) / 512);
         const noise = Math.sin(x * 0.02) * 0.1 + Math.random() * 0.1;
         const baseColor = 220 + noise * 50;
         
-        imageData.data[i] = baseColor * 0.87;     // R
-        imageData.data[i + 1] = baseColor * 0.72; // G
-        imageData.data[i + 2] = baseColor * 0.53; // B
-        imageData.data[i + 3] = 255;              // A
+        imageData.data[i] = baseColor * materialColor.r;
+        imageData.data[i + 1] = baseColor * materialColor.g;
+        imageData.data[i + 2] = baseColor * materialColor.b;
+        imageData.data[i + 3] = 255;
     }
     context.putImageData(imageData, 0, 0);
     
@@ -113,36 +146,50 @@ function createPBRMaterials() {
     
     pineMaterial.map = woodTexture;
 
-    // Metal Handle Material with PBR
+    // Metal Handle Material
     handleMaterial = new THREE.MeshStandardMaterial({
         name: 'MetalHandle',
-        color: new THREE.Color(0.3, 0.3, 0.3), // Dark metal
-        roughness: 0.2, // Polished metal
-        metalness: 1.0, // Fully metallic
-        envMapIntensity: 1.0, // Strong environment reflections
+        color: new THREE.Color(0.3, 0.3, 0.3),
+        roughness: 0.2,
+        metalness: 1.0,
+        envMapIntensity: 1.0,
         transparent: false
     });
 
     // Floor Material
     floorMaterial = new THREE.MeshStandardMaterial({
         name: 'WoodFloor',
-        color: new THREE.Color(0.4, 0.3, 0.2), // Darker wood floor
+        color: new THREE.Color(0.4, 0.3, 0.2),
         roughness: 0.9,
         metalness: 0.0
     });
 }
 
+function getMaterialColor(materialName) {
+    const colors = {
+        'Pine Wood': new THREE.Color(0.87, 0.72, 0.53),
+        'Oak Wood': new THREE.Color(0.65, 0.50, 0.39),
+        'Maple Wood': new THREE.Color(0.96, 0.87, 0.70),
+        'Cherry Wood': new THREE.Color(0.80, 0.42, 0.32),
+        'Plywood': new THREE.Color(0.85, 0.75, 0.60)
+    };
+    return colors[materialName] || colors['Pine Wood'];
+}
+
 function createRealisticLighting() {
-    // Ambient light (reduced for more dramatic lighting)
+    // Clear existing lights
+    const existingLights = scene.children.filter(child => child.isLight);
+    existingLights.forEach(light => scene.remove(light));
+
+    // Ambient light
     const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
     scene.add(ambientLight);
 
-    // Main directional light (sun) with enhanced settings
+    // Main directional light
     const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
     directionalLight.position.set(10, 15, 8);
     directionalLight.castShadow = true;
     
-    // Enhanced shadow settings
     directionalLight.shadow.mapSize.width = 4096;
     directionalLight.shadow.mapSize.height = 4096;
     directionalLight.shadow.camera.near = 0.1;
@@ -156,12 +203,12 @@ function createRealisticLighting() {
     
     scene.add(directionalLight);
 
-    // Fill light from opposite direction
-    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.6); // Sky blue fill
+    // Fill light
+    const fillLight = new THREE.DirectionalLight(0x87CEEB, 0.6);
     fillLight.position.set(-8, 10, -5);
     scene.add(fillLight);
 
-    // Add point lights for better illumination
+    // Point lights
     const pointLight1 = new THREE.PointLight(0xffffff, 0.8, 20);
     pointLight1.position.set(5, 8, 5);
     pointLight1.castShadow = true;
@@ -169,29 +216,23 @@ function createRealisticLighting() {
     pointLight1.shadow.mapSize.height = 1024;
     scene.add(pointLight1);
 
-    const pointLight2 = new THREE.PointLight(0xfff8dc, 0.6, 15); // Warm light
+    const pointLight2 = new THREE.PointLight(0xfff8dc, 0.6, 15);
     pointLight2.position.set(-3, 6, 3);
     scene.add(pointLight2);
 
-    // Create environment map for reflections
     createEnvironmentMap();
 }
 
 function createEnvironmentMap() {
-    // Create a simple environment map using a cube texture
-    const loader = new THREE.CubeTextureLoader();
-    
-    // Create procedural environment
     const size = 512;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext('2d');
     
-    // Sky gradient
     const gradient = context.createLinearGradient(0, 0, 0, size);
-    gradient.addColorStop(0, '#87CEEB'); // Sky blue
-    gradient.addColorStop(1, '#E0F6FF'); // Light blue
+    gradient.addColorStop(0, '#87CEEB');
+    gradient.addColorStop(1, '#E0F6FF');
     
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
@@ -199,20 +240,27 @@ function createEnvironmentMap() {
     const envTexture = new THREE.CanvasTexture(canvas);
     scene.environment = envTexture;
     
-    // Apply to materials
     pineMaterial.envMap = envTexture;
     handleMaterial.envMap = envTexture;
 }
 
 function createEnvironment() {
-    // Enhanced floor
+    // Clear existing environment
+    const existingEnv = scene.children.filter(child => 
+        child.userData && child.userData.isEnvironment
+    );
+    existingEnv.forEach(obj => scene.remove(obj));
+
+    // Floor
     const floorGeometry = new THREE.PlaneGeometry(50, 50);
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
+    floor.userData.isEnvironment = true;
     scene.add(floor);
 
     // Ceiling
+    const ceilingHeight = cabinetDimensions.ceilingHeight * 12 * SCALE;
     const ceilingGeometry = new THREE.PlaneGeometry(50, 50);
     const ceilingMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xF8F8FF,
@@ -221,91 +269,103 @@ function createEnvironment() {
     });
     const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
     ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.y = CEILING_HEIGHT;
+    ceiling.position.y = ceilingHeight;
     ceiling.receiveShadow = true;
+    ceiling.userData.isEnvironment = true;
     scene.add(ceiling);
 
     // Back wall
-    const wallGeometry = new THREE.PlaneGeometry(50, CEILING_HEIGHT);
+    const wallGeometry = new THREE.PlaneGeometry(50, ceilingHeight);
     const wallMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xF5F5DC,
         roughness: 0.8,
         metalness: 0.0
     });
     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-    wall.position.set(0, CEILING_HEIGHT / 2, -8);
+    wall.position.set(0, ceilingHeight / 2, -8);
     wall.receiveShadow = true;
+    wall.userData.isEnvironment = true;
     scene.add(wall);
 }
 
 function createCabinet() {
+    // Remove existing cabinet
+    const existingCabinet = scene.getObjectByName('cabinetGroup');
+    if (existingCabinet) {
+        scene.remove(existingCabinet);
+    }
+
     const cabinetGroup = new THREE.Group();
     cabinetGroup.name = 'cabinetGroup';
 
-    // Create cabinet box (without front panel)
     createCabinetBox(cabinetGroup);
-
-    // Create door
     createDoor(cabinetGroup);
-
-    // Create door handle
     createDoorHandle(cabinetGroup);
 
     scene.add(cabinetGroup);
+    cabinet = cabinetGroup;
 }
 
 function createCabinetBox(parent) {
+    const width = cabinetDimensions.width * SCALE;
+    const height = cabinetDimensions.height * SCALE;
+    const depth = cabinetDimensions.depth * SCALE;
+    const thickness = cabinetDimensions.panelThickness * SCALE;
+
     // Back panel
-    const backGeometry = new THREE.BoxGeometry(CABINET_WIDTH, CABINET_HEIGHT, PANEL_THICKNESS);
+    const backGeometry = new THREE.BoxGeometry(width, height, thickness);
     const back = new THREE.Mesh(backGeometry, pineMaterial);
-    back.position.set(0, CABINET_HEIGHT / 2, -CABINET_DEPTH / 2 + PANEL_THICKNESS / 2);
+    back.position.set(0, height / 2, -depth / 2 + thickness / 2);
     back.castShadow = true;
     back.receiveShadow = true;
     parent.add(back);
 
     // Left side panel
-    const leftGeometry = new THREE.BoxGeometry(PANEL_THICKNESS, CABINET_HEIGHT, CABINET_DEPTH);
+    const leftGeometry = new THREE.BoxGeometry(thickness, height, depth);
     const left = new THREE.Mesh(leftGeometry, pineMaterial);
-    left.position.set(-CABINET_WIDTH / 2 + PANEL_THICKNESS / 2, CABINET_HEIGHT / 2, 0);
+    left.position.set(-width / 2 + thickness / 2, height / 2, 0);
     left.castShadow = true;
     left.receiveShadow = true;
     parent.add(left);
 
     // Right side panel
-    const rightGeometry = new THREE.BoxGeometry(PANEL_THICKNESS, CABINET_HEIGHT, CABINET_DEPTH);
+    const rightGeometry = new THREE.BoxGeometry(thickness, height, depth);
     const right = new THREE.Mesh(rightGeometry, pineMaterial);
-    right.position.set(CABINET_WIDTH / 2 - PANEL_THICKNESS / 2, CABINET_HEIGHT / 2, 0);
+    right.position.set(width / 2 - thickness / 2, height / 2, 0);
     right.castShadow = true;
     right.receiveShadow = true;
     parent.add(right);
 
     // Top panel
-    const topGeometry = new THREE.BoxGeometry(CABINET_WIDTH, PANEL_THICKNESS, CABINET_DEPTH);
+    const topGeometry = new THREE.BoxGeometry(width, thickness, depth);
     const top = new THREE.Mesh(topGeometry, pineMaterial);
-    top.position.set(0, CABINET_HEIGHT - PANEL_THICKNESS / 2, 0);
+    top.position.set(0, height - thickness / 2, 0);
     top.castShadow = true;
     top.receiveShadow = true;
     parent.add(top);
 
     // Bottom panel
-    const bottomGeometry = new THREE.BoxGeometry(CABINET_WIDTH, PANEL_THICKNESS, CABINET_DEPTH);
+    const bottomGeometry = new THREE.BoxGeometry(width, thickness, depth);
     const bottom = new THREE.Mesh(bottomGeometry, pineMaterial);
-    bottom.position.set(0, PANEL_THICKNESS / 2, 0);
+    bottom.position.set(0, thickness / 2, 0);
     bottom.castShadow = true;
     bottom.receiveShadow = true;
     parent.add(bottom);
 }
 
 function createDoor(parent) {
-    // Door dimensions (slightly smaller than opening to allow for clearance)
-    const doorWidth = CABINET_WIDTH - PANEL_THICKNESS * 2 - 0.01; // Small clearance
-    const doorHeight = CABINET_HEIGHT - PANEL_THICKNESS * 2 - 0.01; // Small clearance
+    const width = cabinetDimensions.width * SCALE;
+    const height = cabinetDimensions.height * SCALE;
+    const depth = cabinetDimensions.depth * SCALE;
+    const thickness = cabinetDimensions.panelThickness * SCALE;
+
+    const doorWidth = width - thickness * 2 - 0.01;
+    const doorHeight = height - thickness * 2 - 0.01;
     
-    const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, PANEL_THICKNESS);
+    const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, thickness);
     door = new THREE.Mesh(doorGeometry, pineMaterial);
     
-    // Position door at the front of cabinet
-    door.position.set(0, CABINET_HEIGHT / 2, CABINET_DEPTH / 2 - PANEL_THICKNESS / 2);
+    door.position.set(0, height / 2, depth / 2 - thickness / 2);
     door.castShadow = true;
     door.receiveShadow = true;
     door.name = 'door';
@@ -314,21 +374,23 @@ function createDoor(parent) {
 }
 
 function createDoorHandle(parent) {
-    // Handle shaft
+    const width = cabinetDimensions.width * SCALE;
+    const height = cabinetDimensions.height * SCALE;
+    const depth = cabinetDimensions.depth * SCALE;
+    const thickness = cabinetDimensions.panelThickness * SCALE;
+
     const handleGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.4, 16);
     doorHandle = new THREE.Mesh(handleGeometry, handleMaterial);
     
-    // Position handle on door
     doorHandle.position.set(
-        CABINET_WIDTH / 2 - PANEL_THICKNESS - 0.2, // Right side of door
-        CABINET_HEIGHT / 2, // Middle height
-        CABINET_DEPTH / 2 + 0.05 // Slightly in front of door
+        width / 2 - thickness - 0.2,
+        height / 2,
+        depth / 2 + 0.05
     );
-    doorHandle.rotation.z = Math.PI / 2; // Rotate to horizontal
+    doorHandle.rotation.z = Math.PI / 2;
     doorHandle.castShadow = true;
     doorHandle.name = 'doorHandle';
     
-    // Handle end caps
     const capGeometry = new THREE.SphereGeometry(0.03, 16, 12);
     const leftCap = new THREE.Mesh(capGeometry, handleMaterial);
     leftCap.position.copy(doorHandle.position);
@@ -345,28 +407,303 @@ function createDoorHandle(parent) {
     parent.add(rightCap);
 }
 
+// Card flip functionality
+function flipCard() {
+    console.log('flipCard function called'); // Debug log
+    const card = document.getElementById('card');
+    if (!card) {
+        console.error('Card element not found');
+        return;
+    }
+    
+    console.log('Current card classes:', card.classList.toString());
+    card.classList.toggle('flipped');
+    console.log('New card classes:', card.classList.toString());
+    
+    // Update 2D views when flipping to back
+    if (card.classList.contains('flipped')) {
+        console.log('Card flipped to back, initializing and drawing 2D views...');
+        setTimeout(() => {
+            initialize2DViews(); // Initialize contexts when needed
+            draw2DViews();
+        }, 400); // Wait for flip animation
+    }
+}
+
+// Make sure the function is globally available
+window.flipCard = flipCard;
+
+// Initialize 2D view canvases
+function initialize2DViews() {
+    console.log('Initializing 2D views...');
+    const viewIds = ['front-view', 'rear-view', 'left-view', 'right-view', 'top-view', 'bottom-view'];
+    
+    viewIds.forEach(id => {
+        const canvas = document.getElementById(id);
+        console.log(`Checking canvas: ${id}`, canvas);
+        
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            viewContexts[id] = ctx;
+            
+            // Set canvas size
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            
+            console.log(`Canvas ${id} initialized: ${rect.width}x${rect.height}`);
+        } else {
+            console.warn(`Canvas ${id} not found`);
+        }
+    });
+    
+    console.log('ViewContexts:', Object.keys(viewContexts));
+}
+
+// Draw 2D technical views
+function draw2DViews() {
+    console.log('Drawing 2D views...');
+    
+    try {
+        const width = cabinetDimensions.width;
+        const height = cabinetDimensions.height;
+        const depth = cabinetDimensions.depth;
+        const thickness = cabinetDimensions.panelThickness;
+        
+        console.log('Cabinet dimensions:', { width, height, depth, thickness });
+        
+        // Check if contexts exist
+        if (!viewContexts['front-view']) {
+            console.error('Front view context not found');
+            return;
+        }
+        
+        // Front View
+        drawFrontView(viewContexts['front-view'], width, height, thickness);
+        
+        // Rear View
+        drawRearView(viewContexts['rear-view'], width, height, thickness);
+        
+        // Left View
+        drawSideView(viewContexts['left-view'], depth, height, thickness, 'left');
+        
+        // Right View
+        drawSideView(viewContexts['right-view'], depth, height, thickness, 'right');
+        
+        // Top View
+        drawTopView(viewContexts['top-view'], width, depth, thickness);
+        
+        // Bottom View
+        drawBottomView(viewContexts['bottom-view'], width, depth, thickness);
+        
+        console.log('2D views drawn successfully');
+    } catch (error) {
+        console.error('Error drawing 2D views:', error);
+    }
+}
+
+function drawFrontView(ctx, width, height, thickness) {
+    if (!ctx) return;
+    
+    const canvas = ctx.canvas;
+    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / width, (canvas.height/window.devicePixelRatio - 40) / height);
+    const offsetX = (canvas.width/window.devicePixelRatio - width * scale) / 2;
+    const offsetY = (canvas.height/window.devicePixelRatio - height * scale) / 2;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#f0f0f0';
+    
+    // Cabinet outline
+    ctx.fillRect(offsetX, offsetY, width * scale, height * scale);
+    ctx.strokeRect(offsetX, offsetY, width * scale, height * scale);
+    
+    // Door outline
+    const doorWidth = width - thickness * 2;
+    const doorHeight = height - thickness * 2;
+    const doorX = offsetX + thickness * scale;
+    const doorY = offsetY + thickness * scale;
+    
+    ctx.strokeRect(doorX, doorY, doorWidth * scale, doorHeight * scale);
+    
+    // Handle
+    const handleX = doorX + doorWidth * scale - 2 * scale;
+    const handleY = doorY + doorHeight * scale / 2;
+    ctx.fillStyle = '#666';
+    ctx.fillRect(handleX - 1, handleY - 10, 2, 20);
+    
+    // Dimensions
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.fillText(`${width}"`, offsetX + width * scale / 2 - 10, offsetY + height * scale + 20);
+    ctx.fillText(`${height}"`, offsetX - 30, offsetY + height * scale / 2);
+}
+
+function drawRearView(ctx, width, height, thickness) {
+    if (!ctx) return;
+    
+    const canvas = ctx.canvas;
+    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / width, (canvas.height/window.devicePixelRatio - 40) / height);
+    const offsetX = (canvas.width/window.devicePixelRatio - width * scale) / 2;
+    const offsetY = (canvas.height/window.devicePixelRatio - height * scale) / 2;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#f0f0f0';
+    
+    // Cabinet outline (solid back)
+    ctx.fillRect(offsetX, offsetY, width * scale, height * scale);
+    ctx.strokeRect(offsetX, offsetY, width * scale, height * scale);
+    
+    // Dimensions
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.fillText(`${width}"`, offsetX + width * scale / 2 - 10, offsetY + height * scale + 20);
+    ctx.fillText(`${height}"`, offsetX - 30, offsetY + height * scale / 2);
+}
+
+function drawSideView(ctx, depth, height, thickness, side) {
+    if (!ctx) return;
+    
+    const canvas = ctx.canvas;
+    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / depth, (canvas.height/window.devicePixelRatio - 40) / height);
+    const offsetX = (canvas.width/window.devicePixelRatio - depth * scale) / 2;
+    const offsetY = (canvas.height/window.devicePixelRatio - height * scale) / 2;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#f0f0f0';
+    
+    // Cabinet outline
+    ctx.fillRect(offsetX, offsetY, depth * scale, height * scale);
+    ctx.strokeRect(offsetX, offsetY, depth * scale, height * scale);
+    
+    // Show internal structure
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    
+    // Top and bottom panels
+    ctx.beginPath();
+    ctx.moveTo(offsetX, offsetY + thickness * scale);
+    ctx.lineTo(offsetX + depth * scale, offsetY + thickness * scale);
+    ctx.moveTo(offsetX, offsetY + height * scale - thickness * scale);
+    ctx.lineTo(offsetX + depth * scale, offsetY + height * scale - thickness * scale);
+    ctx.stroke();
+    
+    ctx.setLineDash([]);
+    
+    // Dimensions
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.fillText(`${depth}"`, offsetX + depth * scale / 2 - 10, offsetY + height * scale + 20);
+    ctx.fillText(`${height}"`, offsetX - 30, offsetY + height * scale / 2);
+}
+
+function drawTopView(ctx, width, depth, thickness) {
+    if (!ctx) return;
+    
+    const canvas = ctx.canvas;
+    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / width, (canvas.height/window.devicePixelRatio - 40) / depth);
+    const offsetX = (canvas.width/window.devicePixelRatio - width * scale) / 2;
+    const offsetY = (canvas.height/window.devicePixelRatio - depth * scale) / 2;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#f0f0f0';
+    
+    // Cabinet outline
+    ctx.fillRect(offsetX, offsetY, width * scale, depth * scale);
+    ctx.strokeRect(offsetX, offsetY, width * scale, depth * scale);
+    
+    // Panel structure
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    
+    // Side panels
+    ctx.strokeRect(offsetX, offsetY, thickness * scale, depth * scale);
+    ctx.strokeRect(offsetX + width * scale - thickness * scale, offsetY, thickness * scale, depth * scale);
+    
+    // Back panel
+    ctx.strokeRect(offsetX, offsetY, width * scale, thickness * scale);
+    
+    // Door opening
+    ctx.strokeStyle = '#333';
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(offsetX + thickness * scale, offsetY + depth * scale - thickness * scale, 
+                   width * scale - thickness * 2 * scale, thickness * scale);
+    ctx.setLineDash([]);
+    
+    // Dimensions
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.fillText(`${width}"`, offsetX + width * scale / 2 - 10, offsetY + depth * scale + 20);
+    ctx.fillText(`${depth}"`, offsetX - 30, offsetY + depth * scale / 2);
+}
+
+function drawBottomView(ctx, width, depth, thickness) {
+    drawTopView(ctx, width, depth, thickness); // Same as top view for this simple cabinet
+}
+
+// Update dimensions from form
+function updateDimensions() {
+    cabinetDimensions.width = parseFloat(document.getElementById('input-width').value);
+    cabinetDimensions.depth = parseFloat(document.getElementById('input-depth').value);
+    cabinetDimensions.height = parseFloat(document.getElementById('input-height').value);
+    cabinetDimensions.panelThickness = parseFloat(document.getElementById('input-thickness').value);
+    cabinetDimensions.ceilingHeight = parseFloat(document.getElementById('input-ceiling').value);
+    cabinetDimensions.material = document.getElementById('input-material').value;
+    
+    // Update display values
+    document.getElementById('display-width').textContent = cabinetDimensions.width;
+    document.getElementById('display-depth').textContent = cabinetDimensions.depth;
+    document.getElementById('display-height').textContent = cabinetDimensions.height;
+    document.getElementById('display-thickness').textContent = cabinetDimensions.panelThickness;
+    document.getElementById('display-ceiling').textContent = cabinetDimensions.ceilingHeight;
+    document.getElementById('display-material').textContent = cabinetDimensions.material;
+    
+    // Recreate materials with new material type
+    createPBRMaterials();
+    
+    // Recreate cabinet and environment
+    createEnvironment();
+    updateCameraAndCabinet();
+    
+    // Update 2D views
+    draw2DViews();
+}
+
 function toggleDoor() {
     if (!door) return;
     
     isDoorOpen = !isDoorOpen;
     
-    // Animate door opening/closing
+    const width = cabinetDimensions.width * SCALE;
+    const depth = cabinetDimensions.depth * SCALE;
+    const height = cabinetDimensions.height * SCALE;
+    const thickness = cabinetDimensions.panelThickness * SCALE;
+    
     const targetRotation = isDoorOpen ? -Math.PI / 2 : 0;
     const targetPosition = isDoorOpen ? 
-        { x: -CABINET_WIDTH / 2 + PANEL_THICKNESS, z: CABINET_DEPTH / 2 - PANEL_THICKNESS / 2 } :
-        { x: 0, z: CABINET_DEPTH / 2 - PANEL_THICKNESS / 2 };
+        { x: -width / 2 + thickness, z: depth / 2 - thickness / 2 } :
+        { x: 0, z: depth / 2 - thickness / 2 };
     
-    // Simple animation using requestAnimationFrame
     const startRotation = door.rotation.y;
     const startPosition = { x: door.position.x, z: door.position.z };
-    const duration = 1000; // 1 second
+    const duration = 1000;
     const startTime = Date.now();
     
     function animateDoor() {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         
-        // Easing function (ease-in-out)
         const easeProgress = progress < 0.5 ? 
             2 * progress * progress : 
             1 - Math.pow(-2 * progress + 2, 2) / 2;
@@ -375,13 +712,12 @@ function toggleDoor() {
         door.position.x = startPosition.x + (targetPosition.x - startPosition.x) * easeProgress;
         door.position.z = startPosition.z + (targetPosition.z - startPosition.z) * easeProgress;
         
-        // Also move the handle with the door
         if (doorHandle) {
             const handleOffset = isDoorOpen ? 
-                { x: -CABINET_WIDTH / 2 + PANEL_THICKNESS - 0.2, z: CABINET_DEPTH / 2 + 0.05 } :
-                { x: CABINET_WIDTH / 2 - PANEL_THICKNESS - 0.2, z: CABINET_DEPTH / 2 + 0.05 };
+                { x: -width / 2 + thickness - 0.2, z: depth / 2 + 0.05 } :
+                { x: width / 2 - thickness - 0.2, z: depth / 2 + 0.05 };
             
-            doorHandle.position.x = startPosition.x + (handleOffset.x - (CABINET_WIDTH / 2 - PANEL_THICKNESS - 0.2)) * easeProgress + (CABINET_WIDTH / 2 - PANEL_THICKNESS - 0.2);
+            doorHandle.position.x = startPosition.x + (handleOffset.x - (width / 2 - thickness - 0.2)) * easeProgress + (width / 2 - thickness - 0.2);
         }
         
         if (progress < 1) {
@@ -393,8 +729,9 @@ function toggleDoor() {
 }
 
 function resetView() {
-    camera.position.set(6, 4, 6);
-    controls.target.set(0, CABINET_HEIGHT / 2, 0);
+    const maxDim = Math.max(cabinetDimensions.width, cabinetDimensions.depth, cabinetDimensions.height) * SCALE;
+    camera.position.set(maxDim * 0.8, maxDim * 0.6, maxDim * 0.8);
+    controls.target.set(0, cabinetDimensions.height * SCALE / 2, 0);
     controls.update();
 }
 
@@ -402,7 +739,7 @@ function toggleWireframe() {
     isWireframe = !isWireframe;
     
     scene.traverse((child) => {
-        if (child.isMesh && child.material) {
+        if (child.isMesh && child.material && !child.userData.isEnvironment) {
             child.material.wireframe = isWireframe;
         }
     });
@@ -410,15 +747,34 @@ function toggleWireframe() {
 
 function animate() {
     requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
+    if (controls) controls.update();
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    const canvas = document.getElementById('canvas');
+    const container = canvas.parentElement;
+    const rect = container.getBoundingClientRect();
+    
+    camera.aspect = rect.width / rect.height;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(rect.width, rect.height);
+    
+    // Reinitialize 2D views on resize
+    setTimeout(() => {
+        initialize2DViews();
+        draw2DViews();
+    }, 100);
 }
 
 // Initialize when page loads
 init();
+
+// Make functions globally available for HTML onclick handlers
+window.flipCard = flipCard;
+window.toggleDoor = toggleDoor;
+window.resetView = resetView;
+window.toggleWireframe = toggleWireframe;
+window.updateDimensions = updateDimensions;

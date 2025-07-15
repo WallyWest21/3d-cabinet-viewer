@@ -7,94 +7,383 @@
     <style>
         body {
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             font-family: 'Arial', sans-serif;
-            overflow: hidden;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         
-        #container {
-            width: 100vw;
-            height: 100vh;
+        .card-container {
+            perspective: 1000px;
+            width: 95vw;
+            max-width: 1200px;
+            height: 80vh;
+            min-height: 600px;
+        }
+        
+        .card {
             position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
         }
         
-        #info {
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .card-front {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .card-back {
+            transform: rotateY(180deg);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .card-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .card-title {
+            margin: 0;
+            color: #333;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .flip-button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .flip-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-panel {
             position: absolute;
             top: 20px;
             left: 20px;
             background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-            max-width: 300px;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            max-width: 280px;
+            z-index: 10;
         }
         
-        #info h1 {
-            margin: 0 0 15px 0;
+        .info-panel h3 {
+            margin: 0 0 10px 0;
             color: #333;
-            font-size: 20px;
+            font-size: 16px;
+            font-weight: 600;
         }
         
-        #info p {
-            margin: 5px 0;
+        .info-panel p {
+            margin: 3px 0;
             color: #666;
-            font-size: 14px;
+            font-size: 12px;
         }
         
-        #controls {
+        .controls-panel {
             position: absolute;
             bottom: 20px;
             right: 20px;
             background: rgba(255, 255, 255, 0.9);
             padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 100;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            z-index: 10;
         }
         
         .control-button {
             display: block;
             margin: 5px 0;
             padding: 8px 16px;
-            background: #4CAF50;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 100px;
         }
         
         .control-button:hover {
-            background: #45a049;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
         }
         
-        #canvas {
+        /* 2D View Styles */
+        .technical-drawing {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            height: 100%;
+        }
+        
+        .views-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .view-panel {
+            background: rgba(248, 249, 250, 0.8);
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 150px;
+        }
+        
+        .view-title {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .view-canvas {
+            width: 100%;
+            height: 100%;
+            min-height: 120px;
+        }
+        
+        .dimensions-panel {
+            background: rgba(248, 249, 250, 0.8);
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .dimensions-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .dimension-group {
+            margin-bottom: 15px;
+        }
+        
+        .dimension-label {
             display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        
+        .dimension-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+        
+        .dimension-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .update-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .update-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <canvas id="canvas"></canvas>
-        
-        <div id="info">
-            <h1>Pine Wood Cabinet</h1>
-            <p><strong>Dimensions:</strong></p>
-            <p>Width: 20 inches</p>
-            <p>Depth: 20 inches</p>
-            <p>Height: 30 inches</p>
-            <p>Panel Thickness: 0.75 inches</p>
-            <p><strong>Material:</strong> Pine Wood</p>
-            <p><strong>Features:</strong> Door with handle</p>
-            <p><strong>Ceiling Height:</strong> 8 feet</p>
-        </div>
-        
-        <div id="controls">
-            <button class="control-button" onclick="toggleDoor()">Toggle Door</button>
-            <button class="control-button" onclick="resetView()">Reset View</button>
-            <button class="control-button" onclick="toggleWireframe()">Wireframe</button>
+    <div class="card-container">
+        <div class="card" id="card">
+            <!-- Front Face (3D View) -->
+            <div class="card-face card-front">
+                <div class="card-header">
+                    <h1 class="card-title">Pine Wood Cabinet - 3D Model</h1>
+                    <button class="flip-button" onclick="flipCard()">View 2D Plans</button>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="canvas"></canvas>
+                    
+                    <div class="info-panel">
+                        <h3>Cabinet Specifications</h3>
+                        <p><strong>Width:</strong> <span id="display-width">20</span> inches</p>
+                        <p><strong>Depth:</strong> <span id="display-depth">20</span> inches</p>
+                        <p><strong>Height:</strong> <span id="display-height">30</span> inches</p>
+                        <p><strong>Panel Thickness:</strong> <span id="display-thickness">0.75</span> inches</p>
+                        <p><strong>Material:</strong> <span id="display-material">Pine Wood</span></p>
+                        <p><strong>Ceiling Height:</strong> <span id="display-ceiling">8</span> feet</p>
+                    </div>
+                    
+                    <div class="controls-panel">
+                        <button class="control-button" onclick="toggleDoor()">Toggle Door</button>
+                        <button class="control-button" onclick="resetView()">Reset View</button>
+                        <button class="control-button" onclick="toggleWireframe()">Wireframe</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Back Face (2D Technical Drawing) -->
+            <div class="card-face card-back">
+                <div class="card-header">
+                    <h1 class="card-title">Pine Wood Cabinet - Technical Drawing</h1>
+                    <button class="flip-button" onclick="flipCard()">View 3D Model</button>
+                </div>
+                
+                <div class="technical-drawing">
+                    <div class="views-grid">
+                        <div class="view-panel">
+                            <div class="view-title">Front View</div>
+                            <canvas class="view-canvas" id="front-view"></canvas>
+                        </div>
+                        
+                        <div class="view-panel">
+                            <div class="view-title">Right View</div>
+                            <canvas class="view-canvas" id="right-view"></canvas>
+                        </div>
+                        
+                        <div class="view-panel">
+                            <div class="view-title">Top View</div>
+                            <canvas class="view-canvas" id="top-view"></canvas>
+                        </div>
+                        
+                        <div class="view-panel">
+                            <div class="view-title">Rear View</div>
+                            <canvas class="view-canvas" id="rear-view"></canvas>
+                        </div>
+                        
+                        <div class="view-panel">
+                            <div class="view-title">Left View</div>
+                            <canvas class="view-canvas" id="left-view"></canvas>
+                        </div>
+                        
+                        <div class="view-panel">
+                            <div class="view-title">Bottom View</div>
+                            <canvas class="view-canvas" id="bottom-view"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="dimensions-panel">
+                        <h2 class="dimensions-title">Edit Dimensions</h2>
+                        
+                        <div class="dimension-group">
+                            <label class="dimension-label">Width (inches)</label>
+                            <input type="number" class="dimension-input" id="input-width" value="20" min="10" max="50" step="0.25">
+                        </div>
+                        
+                        <div class="dimension-group">
+                            <label class="dimension-label">Depth (inches)</label>
+                            <input type="number" class="dimension-input" id="input-depth" value="20" min="10" max="50" step="0.25">
+                        </div>
+                        
+                        <div class="dimension-group">
+                            <label class="dimension-label">Height (inches)</label>
+                            <input type="number" class="dimension-input" id="input-height" value="30" min="20" max="60" step="0.25">
+                        </div>
+                        
+                        <div class="dimension-group">
+                            <label class="dimension-label">Panel Thickness (inches)</label>
+                            <input type="number" class="dimension-input" id="input-thickness" value="0.75" min="0.5" max="2" step="0.125">
+                        </div>
+                        
+                        <div class="dimension-group">
+                            <label class="dimension-label">Material</label>
+                            <select class="dimension-input" id="input-material">
+                                <option value="Pine Wood">Pine Wood</option>
+                                <option value="Oak Wood">Oak Wood</option>
+                                <option value="Maple Wood">Maple Wood</option>
+                                <option value="Cherry Wood">Cherry Wood</option>
+                                <option value="Plywood">Plywood</option>
+                            </select>
+                        </div>
+                        
+                        <div class="dimension-group">
+                            <label class="dimension-label">Ceiling Height (feet)</label>
+                            <input type="number" class="dimension-input" id="input-ceiling" value="8" min="7" max="12" step="0.25">
+                        </div>
+                        
+                        <button class="update-button" onclick="updateDimensions()">Update Cabinet</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
