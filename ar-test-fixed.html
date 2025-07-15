@@ -9,13 +9,9 @@
             margin: 0;
             padding: 20px;
             font-family: Arial, sans-serif;
-            background: #f5f5f5;  }
-            addStatus('✅ AR-optimized cabinet model loaded!', 'success');
-            addStatus('📱 Model is ready for AR - tap "View in Your Space"', 'info');
-            
-            // Enable manual AR button
-            const manualBtn = document.getElementById('manual-ar-btn');
-            if (manualBtn) manualBtn.disabled = false;      
+            background: #f5f5f5;
+        }
+        
         .test-container {
             max-width: 600px;
             margin: 0 auto;
@@ -165,8 +161,9 @@
             <h3>How to Test:</h3>
             <ol>
                 <li>Click "Test AR Support" to check if your device supports AR</li>
-                <li>Click "Load Test Cabinet Model" to load a 3D model</li>
+                <li>Click "Load Test Cabinet Model" or "Load Google Test Model"</li>
                 <li>Click "📱 View in Your Space" to launch AR mode</li>
+                <li>If that doesn't work, try "🚀 Manual AR Activation"</li>
                 <li>Grant camera permissions when prompted</li>
                 <li>Move your device to scan the floor/surface</li>
                 <li>Tap to place the cabinet in your space</li>
@@ -174,8 +171,9 @@
         </div>
         
         <div class="info-box">
-            <h3>Troubleshooting AR Crashes:</h3>
+            <h3>Troubleshooting AR Issues:</h3>
             <ul>
+                <li><strong>Nothing happens when clicking AR:</strong> Try the "Manual AR Activation" button</li>
                 <li><strong>App crashes during AR:</strong> Try the "Google Test Model" first - it's more stable</li>
                 <li><strong>Returns to main page:</strong> Your device may be low on memory - close other apps</li>
                 <li><strong>AR button doesn't appear:</strong> Ensure HTTPS and compatible device/browser</li>
@@ -185,13 +183,14 @@
                 <li><strong>Persistent crashes:</strong> Try refreshing the page and testing with smaller models first</li>
             </ul>
             
-            <h4 style="color: #ff9800;">If AR keeps crashing:</h4>
+            <h4 style="color: #ff9800;">If AR keeps failing:</h4>
             <ol>
                 <li>Test with "Google Test Model" first (more stable)</li>
                 <li>Close other apps to free memory</li>
                 <li>Ensure strong WiFi connection</li>
                 <li>Try in an incognito/private browser window</li>
                 <li>Restart your browser completely</li>
+                <li>Check browser console for error messages</li>
             </ol>
         </div>
     </div>
@@ -248,6 +247,92 @@
                 addStatus('🔒 HTTPS connection confirmed', 'success');
             } else {
                 addStatus('⚠️ HTTP connection - AR may not work without HTTPS', 'error');
+            }
+        }
+        
+        function debugARButton() {
+            addStatus('🔍 AR button clicked - checking status...', 'info');
+            
+            const modelViewer = document.getElementById('ar-test-viewer');
+            
+            // Check if model is loaded
+            if (!modelViewer.src) {
+                addStatus('❌ No model loaded - load a model first!', 'error');
+                return;
+            }
+            
+            // Check AR support
+            console.log('Model viewer canActivateAR:', modelViewer.canActivateAR);
+            console.log('AR modes:', modelViewer.arModes);
+            console.log('Current src:', modelViewer.src);
+            
+            if (!modelViewer.canActivateAR) {
+                addStatus('❌ AR not available - device/browser may not support AR', 'error');
+                
+                // Try to force AR activation anyway
+                addStatus('🔄 Attempting to force AR activation...', 'info');
+                try {
+                    modelViewer.activateAR();
+                } catch (error) {
+                    addStatus('❌ Force activation failed: ' + error.message, 'error');
+                }
+                return;
+            }
+            
+            // Try to activate AR
+            addStatus('🚀 Attempting to start AR session...', 'info');
+            try {
+                modelViewer.activateAR().then(() => {
+                    addStatus('✅ AR activation successful!', 'success');
+                }).catch((error) => {
+                    addStatus('❌ AR activation failed: ' + error.message, 'error');
+                    console.error('AR activation error:', error);
+                });
+            } catch (error) {
+                addStatus('❌ AR activation error: ' + error.message, 'error');
+                console.error('AR activation error:', error);
+            }
+        }
+        
+        async function manualARActivation() {
+            addStatus('🚀 Manual AR activation triggered...', 'info');
+            
+            const modelViewer = document.getElementById('ar-test-viewer');
+            
+            if (!modelViewer.src) {
+                addStatus('❌ Load a model first!', 'error');
+                return;
+            }
+            
+            try {
+                // Multiple activation attempts
+                addStatus('🔄 Attempt 1: Direct AR activation...', 'info');
+                await modelViewer.activateAR();
+                addStatus('✅ AR activated successfully!', 'success');
+                
+            } catch (error1) {
+                addStatus('⚠️ Attempt 1 failed: ' + error1.message, 'error');
+                
+                try {
+                    addStatus('🔄 Attempt 2: Checking WebXR support...', 'info');
+                    
+                    if ('xr' in navigator) {
+                        const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                        if (isSupported) {
+                            addStatus('✅ WebXR AR is supported!', 'success');
+                            await modelViewer.activateAR();
+                        } else {
+                            addStatus('❌ WebXR AR not supported', 'error');
+                        }
+                    } else {
+                        addStatus('❌ WebXR not available', 'error');
+                    }
+                    
+                } catch (error2) {
+                    addStatus('❌ All activation attempts failed', 'error');
+                    addStatus('💡 Try using Chrome on Android or Safari on iOS', 'info');
+                    console.error('Manual AR activation failed:', error2);
+                }
             }
         }
         
@@ -362,7 +447,11 @@
             });
             
             addStatus('✅ AR-optimized cabinet model loaded!', 'success');
-            addStatus('� Model is ready for AR - tap "View in Your Space"', 'info');
+            addStatus('📱 Model is ready for AR - tap "View in Your Space"', 'info');
+            
+            // Enable manual AR button
+            const manualBtn = document.getElementById('manual-ar-btn');
+            if (manualBtn) manualBtn.disabled = false;
         }
         
         async function loadFallbackModel() {
@@ -378,52 +467,12 @@
                 
                 addStatus('✅ Fallback model loaded (Google Astronaut)', 'success');
                 addStatus('📱 You can test AR with this model', 'info');
+                
+                // Enable manual AR button
+                const manualBtn = document.getElementById('manual-ar-btn');
+                if (manualBtn) manualBtn.disabled = false;
             } catch (error) {
                 addStatus('❌ Even fallback model failed to load', 'error');
-            }
-        }
-        
-        function debugARButton() {
-            addStatus('🔍 AR button clicked - checking status...', 'info');
-            
-            const modelViewer = document.getElementById('ar-test-viewer');
-            
-            // Check if model is loaded
-            if (!modelViewer.src) {
-                addStatus('❌ No model loaded - load a model first!', 'error');
-                return;
-            }
-            
-            // Check AR support
-            console.log('Model viewer canActivateAR:', modelViewer.canActivateAR);
-            console.log('AR modes:', modelViewer.arModes);
-            console.log('Current src:', modelViewer.src);
-            
-            if (!modelViewer.canActivateAR) {
-                addStatus('❌ AR not available - device/browser may not support AR', 'error');
-                
-                // Try to force AR activation anyway
-                addStatus('🔄 Attempting to force AR activation...', 'info');
-                try {
-                    modelViewer.activateAR();
-                } catch (error) {
-                    addStatus('❌ Force activation failed: ' + error.message, 'error');
-                }
-                return;
-            }
-            
-            // Try to activate AR
-            addStatus('🚀 Attempting to start AR session...', 'info');
-            try {
-                modelViewer.activateAR().then(() => {
-                    addStatus('✅ AR activation successful!', 'success');
-                }).catch((error) => {
-                    addStatus('❌ AR activation failed: ' + error.message, 'error');
-                    console.error('AR activation error:', error);
-                });
-            } catch (error) {
-                addStatus('❌ AR activation error: ' + error.message, 'error');
-                console.error('AR activation error:', error);
             }
         }
         
@@ -442,54 +491,16 @@
                 addStatus('✅ Google test model loaded successfully!', 'success');
                 addStatus('📱 This model is AR-optimized and should work reliably', 'info');
                 
+                // Enable manual AR button
+                const manualBtn = document.getElementById('manual-ar-btn');
+                if (manualBtn) manualBtn.disabled = false;
+                
             } catch (error) {
                 addStatus('❌ Failed to load Google model: ' + error.message, 'error');
             }
         }
         
-        async function manualARActivation() {
-            addStatus('🚀 Manual AR activation triggered...', 'info');
-            
-            const modelViewer = document.getElementById('ar-test-viewer');
-            
-            if (!modelViewer.src) {
-                addStatus('❌ Load a model first!', 'error');
-                return;
-            }
-            
-            try {
-                // Multiple activation attempts
-                addStatus('🔄 Attempt 1: Direct AR activation...', 'info');
-                await modelViewer.activateAR();
-                addStatus('✅ AR activated successfully!', 'success');
-                
-            } catch (error1) {
-                addStatus('⚠️ Attempt 1 failed: ' + error1.message, 'error');
-                
-                try {
-                    addStatus('🔄 Attempt 2: Checking WebXR support...', 'info');
-                    
-                    if ('xr' in navigator) {
-                        const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
-                        if (isSupported) {
-                            addStatus('✅ WebXR AR is supported!', 'success');
-                            await modelViewer.activateAR();
-                        } else {
-                            addStatus('❌ WebXR AR not supported', 'error');
-                        }
-                    } else {
-                        addStatus('❌ WebXR not available', 'error');
-                    }
-                    
-                } catch (error2) {
-                    addStatus('❌ All activation attempts failed', 'error');
-                    addStatus('💡 Try using Chrome on Android or Safari on iOS', 'info');
-                    console.error('Manual AR activation failed:', error2);
-                }
-            }
-        }
-        
-        // ...existing code...
+        // Initialize model-viewer event listeners
         document.addEventListener('DOMContentLoaded', () => {
             const modelViewer = document.getElementById('ar-test-viewer');
             
