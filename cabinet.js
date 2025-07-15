@@ -1517,6 +1517,24 @@ async function generateCabinetForAR() {
     });
 }
 
+// Test function to verify button clicks work
+function testARClick() {
+    console.log('🔍 AR button clicked - testing...');
+    alert('AR button clicked! Check console for details.');
+    
+    // Test if the activateModelViewerAR function exists
+    if (typeof activateModelViewerAR === 'function') {
+        console.log('✅ activateModelViewerAR function found');
+        activateModelViewerAR();
+    } else {
+        console.error('❌ activateModelViewerAR function not found');
+        alert('activateModelViewerAR function not found - check console');
+    }
+}
+
+// Make test function available globally
+window.testARClick = testARClick;
+
 // Make functions globally available for HTML onclick handlers
 window.flipCard = flipCard;
 window.toggleDoor = toggleDoor;
