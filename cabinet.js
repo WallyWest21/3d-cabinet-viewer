@@ -26,7 +26,7 @@ let viewContexts = {};
 function init() {
     // Create scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf5f5f5);
+    scene.background = new THREE.Color(0xfafafa);
 
     // Create camera
     camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);

@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Pine Wood Cabinet 3D Model</title>
+    <title>Cabinet</title>
     <style>
         body {
             margin: 0;
-            padding: 10px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            font-family: 'Arial', sans-serif;
+            padding: 0;
+            background: #ffffff;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 300;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -21,23 +22,24 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            color: #222;
         }
         
         .card-container {
             perspective: 1000px;
-            width: 95vw;
-            max-width: 1200px;
-            height: 85vh;
+            width: 90vw;
+            max-width: 1000px;
+            height: 80vh;
             min-height: 500px;
         }
         
         @media (max-width: 768px) {
             body {
-                padding: 5px;
+                padding: 0;
             }
             
             .card-container {
-                width: 98vw;
+                width: 95vw;
                 height: 90vh;
                 min-height: 400px;
             }
@@ -48,9 +50,9 @@
             width: 100%;
             height: 100%;
             transform-style: preserve-3d;
-            transition: transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            border-radius: 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
         }
         
         .card.flipped {
@@ -62,10 +64,10 @@
             width: 100%;
             height: 100%;
             backface-visibility: hidden;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0;
+            background: #ffffff;
+            backdrop-filter: none;
+            border: 1px solid #e0e0e0;
         }
         
         .card-front {
@@ -75,61 +77,65 @@
         
         .card-back {
             transform: rotateY(180deg);
-            padding: 20px;
+            padding: 24px;
             overflow-y: auto;
         }
         
         .card-header {
-            padding: 15px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 24px 24px 16px 24px;
+            border-bottom: 1px solid #e0e0e0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 20px 20px 0 0;
+            background: #ffffff;
+            border-radius: 0;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 16px;
         }
         
         .card-title {
             margin: 0;
-            color: #333;
-            font-size: 20px;
-            font-weight: 600;
+            color: #222;
+            font-size: 18px;
+            font-weight: 400;
+            letter-spacing: 0.025em;
             flex: 1;
             min-width: 200px;
         }
         
         @media (max-width: 768px) {
             .card-header {
-                padding: 10px;
+                padding: 16px;
                 flex-direction: column;
                 text-align: center;
             }
             
             .card-title {
-                font-size: 18px;
+                font-size: 16px;
                 min-width: auto;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
             }
         }
         
         .flip-button {
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            padding: 12px 24px;
+            background: #222;
+            color: #ffffff;
             border: none;
-            border-radius: 50px;
+            border-radius: 0;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            font-size: 13px;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            box-shadow: none;
         }
         
         .flip-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            background: #444;
+            transform: none;
+            box-shadow: none;
         }
         
         @media (max-width: 768px) {
@@ -146,7 +152,8 @@
             flex: 1;
             position: relative;
             overflow: hidden;
-            border-radius: 0 0 20px 20px;
+            border-radius: 0;
+            background: #fafafa;
         }
         
         #canvas {
@@ -183,43 +190,53 @@
         
         .controls-panel {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
+            bottom: 24px;
+            right: 24px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            backdrop-filter: none;
             z-index: 10;
         }
         
         .control-button {
             display: block;
-            margin: 5px 0;
-            padding: 8px 16px;
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
+            margin: 0 0 8px 0;
+            padding: 10px 16px;
+            background: #f5f5f5;
+            color: #222;
+            border: 1px solid #ddd;
+            border-radius: 0;
             cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            min-width: 100px;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: all 0.15s ease;
+            min-width: 80px;
+            text-align: center;
         }
         
         .control-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            background: #e8e8e8;
+            border-color: #ccc;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .control-button:last-child {
+            margin-bottom: 0;
         }
         
         @media (max-width: 768px) {
             .controls-panel {
-                bottom: 10px;
-                right: 10px;
-                left: 10px;
+                bottom: 16px;
+                right: 16px;
+                left: 16px;
                 width: auto;
-                padding: 12px;
+                padding: 16px;
                 display: flex;
                 flex-wrap: wrap;
                 justify-content: center;
@@ -228,10 +245,10 @@
             
             .control-button {
                 flex: 1;
-                min-width: 80px;
+                min-width: 70px;
                 margin: 0;
                 padding: 12px 8px;
-                font-size: 14px;
+                font-size: 10px;
                 min-height: 44px;
             }
         }
@@ -239,23 +256,24 @@
         /* 2D View Styles */
         .technical-drawing {
             display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 20px;
+            grid-template-columns: 1fr 280px;
+            gap: 24px;
             height: 100%;
+            padding: 24px;
         }
         
         .views-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr 1fr;
-            gap: 15px;
+            gap: 16px;
         }
         
         .view-panel {
-            background: rgba(248, 249, 250, 0.8);
-            border: 2px solid rgba(0, 0, 0, 0.1);
-            border-radius: 12px;
-            padding: 15px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 0;
+            padding: 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -286,11 +304,13 @@
         
         .view-title {
             position: absolute;
-            top: 10px;
-            left: 15px;
-            font-weight: 600;
-            color: #333;
-            font-size: 14px;
+            top: 12px;
+            left: 16px;
+            font-weight: 400;
+            color: #666;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }
         
         .view-canvas {
@@ -300,45 +320,50 @@
         }
         
         .dimensions-panel {
-            background: rgba(248, 249, 250, 0.8);
-            border: 2px solid rgba(0, 0, 0, 0.1);
-            border-radius: 12px;
-            padding: 20px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 0;
+            padding: 24px;
         }
         
         .dimensions-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: 400;
+            color: #222;
+            margin-bottom: 24px;
+            letter-spacing: 0.025em;
         }
         
         .dimension-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         
         .dimension-label {
             display: block;
-            font-size: 12px;
-            font-weight: 500;
-            color: #555;
-            margin-bottom: 5px;
+            font-size: 11px;
+            font-weight: 400;
+            color: #666;
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }
         
         .dimension-input {
             width: 100%;
-            padding: 8px 12px;
-            border: 2px solid rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 0;
             font-size: 14px;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.8);
+            font-weight: 300;
+            transition: border-color 0.15s ease;
+            background: #ffffff;
+            color: #222;
         }
         
         .dimension-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #222;
+            box-shadow: none;
         }
         
         @media (max-width: 768px) {
@@ -360,21 +385,24 @@
         
         .update-button {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            padding: 14px 24px;
+            background: #222;
+            color: #ffffff;
             border: none;
-            border-radius: 10px;
+            border-radius: 0;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 20px;
-            transition: all 0.3s ease;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-top: 24px;
+            transition: background-color 0.15s ease;
         }
         
         .update-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            background: #444;
+            transform: none;
+            box-shadow: none;
         }
     </style>
 </head>
@@ -384,8 +412,8 @@
             <!-- Front Face (3D View) -->
             <div class="card-face card-front">
                 <div class="card-header">
-                    <h1 class="card-title">Pine Wood Cabinet - 3D Model</h1>
-                    <button class="flip-button" onclick="flipCard()">View 2D Plans</button>
+                    <h1 class="card-title">Cabinet</h1>
+                    <button class="flip-button" onclick="flipCard()">Technical Drawing</button>
                 </div>
                 <div class="canvas-container">
                     <canvas id="canvas"></canvas>
@@ -401,12 +429,12 @@
                     </div>
                     
                     <div class="controls-panel">
-                        <button class="control-button" onclick="toggleDoor()">Toggle Door</button>
-                        <button class="control-button" onclick="resetView()">Reset View</button>
-                        <button class="control-button" onclick="toggleWireframe()">Wireframe</button>
-                        <button class="control-button" onclick="setFrontView()">Front View</button>
-                        <button class="control-button" onclick="setLeftView()">Left View</button>
-                        <button class="control-button" onclick="setRightView()">Right View</button>
+                        <button class="control-button" onclick="toggleDoor()">Door</button>
+                        <button class="control-button" onclick="resetView()">Reset</button>
+                        <button class="control-button" onclick="toggleWireframe()">Wire</button>
+                        <button class="control-button" onclick="setFrontView()">Front</button>
+                        <button class="control-button" onclick="setLeftView()">Left</button>
+                        <button class="control-button" onclick="setRightView()">Right</button>
                     </div>
                 </div>
             </div>
@@ -414,8 +442,8 @@
             <!-- Back Face (2D Technical Drawing) -->
             <div class="card-face card-back">
                 <div class="card-header">
-                    <h1 class="card-title">Pine Wood Cabinet - Technical Drawing</h1>
-                    <button class="flip-button" onclick="flipCard()">View 3D Model</button>
+                    <h1 class="card-title">Technical Drawing</h1>
+                    <button class="flip-button" onclick="flipCard()">3D Model</button>
                 </div>
                 
                 <div class="technical-drawing">
@@ -490,7 +518,7 @@
                             <input type="number" class="dimension-input" id="input-ceiling" value="8" min="7" max="12" step="0.25">
                         </div>
                         
-                        <button class="update-button" onclick="updateDimensions()">Update Cabinet</button>
+                        <button class="update-button" onclick="updateDimensions()">Update</button>
                     </div>
                 </div>
             </div>
