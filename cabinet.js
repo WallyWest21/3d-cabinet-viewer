@@ -11,7 +11,10 @@ let cabinetDimensions = {
     height: 30,
     panelThickness: 0.75,
     ceilingHeight: 8,
-    material: 'Pine Wood'
+    material: 'Pine Wood',
+    hasFrenchCleat: false,
+    frenchCleatHeight: 3,
+    frenchCleatThickness: 0.75
 };
 
 // Dimensions in Three.js units (inches converted to a suitable scale)
@@ -339,7 +342,7 @@ function createEnvironment() {
     ceiling.userData.isEnvironment = true;
     scene.add(ceiling);
 
-    // Back wall
+    // Back wall - align with rear panel
     const wallGeometry = new THREE.PlaneGeometry(50, ceilingHeight);
     const wallMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xF5F5DC,
@@ -347,7 +350,10 @@ function createEnvironment() {
         metalness: 0.0
     });
     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-    wall.position.set(0, ceilingHeight / 2, -8);
+    // Position wall exactly at the cabinet's rear panel position
+    const cabinetDepth = cabinetDimensions.depth * SCALE;
+    const thickness = cabinetDimensions.panelThickness * SCALE;
+    wall.position.set(0, ceilingHeight / 2, -cabinetDepth / 2 + thickness / 2);
     wall.receiveShadow = true;
     wall.userData.isEnvironment = true;
     scene.add(wall);
@@ -366,6 +372,11 @@ function createCabinet() {
     createCabinetBox(cabinetGroup);
     createDoor(cabinetGroup);
     createDoorHandle(cabinetGroup);
+    
+    // Add French cleat if enabled
+    if (cabinetDimensions.hasFrenchCleat) {
+        createFrenchCleat(cabinetGroup);
+    }
 
     scene.add(cabinetGroup);
     cabinet = cabinetGroup;
@@ -376,6 +387,10 @@ function createCabinetBox(parent) {
     const height = cabinetDimensions.height * SCALE;
     const depth = cabinetDimensions.depth * SCALE;
     const thickness = cabinetDimensions.panelThickness * SCALE;
+    
+    // Calculate extensions for French cleat if enabled
+    const cleatThickness = cabinetDimensions.hasFrenchCleat ? 
+        cabinetDimensions.frenchCleatThickness * SCALE : 0;
 
     // Back panel
     const backGeometry = new THREE.BoxGeometry(width, height, thickness);
@@ -385,34 +400,38 @@ function createCabinetBox(parent) {
     back.receiveShadow = true;
     parent.add(back);
 
-    // Left side panel
-    const leftGeometry = new THREE.BoxGeometry(thickness, height, depth);
+    // Left side panel (extend for French cleat)
+    const leftWidth = thickness + cleatThickness;
+    const leftGeometry = new THREE.BoxGeometry(leftWidth, height, depth);
     const left = new THREE.Mesh(leftGeometry, pineMaterial);
-    left.position.set(-width / 2 + thickness / 2, height / 2, 0);
+    left.position.set(-width / 2 + leftWidth / 2, height / 2, 0);
     left.castShadow = true;
     left.receiveShadow = true;
     parent.add(left);
 
-    // Right side panel
-    const rightGeometry = new THREE.BoxGeometry(thickness, height, depth);
+    // Right side panel (extend for French cleat)
+    const rightWidth = thickness + cleatThickness;
+    const rightGeometry = new THREE.BoxGeometry(rightWidth, height, depth);
     const right = new THREE.Mesh(rightGeometry, pineMaterial);
-    right.position.set(width / 2 - thickness / 2, height / 2, 0);
+    right.position.set(width / 2 - rightWidth / 2, height / 2, 0);
     right.castShadow = true;
     right.receiveShadow = true;
     parent.add(right);
 
-    // Top panel
-    const topGeometry = new THREE.BoxGeometry(width, thickness, depth);
+    // Top panel (extend for French cleat)
+    const topDepth = depth + cleatThickness;
+    const topGeometry = new THREE.BoxGeometry(width, thickness, topDepth);
     const top = new THREE.Mesh(topGeometry, pineMaterial);
-    top.position.set(0, height - thickness / 2, 0);
+    top.position.set(0, height - thickness / 2, -cleatThickness / 2);
     top.castShadow = true;
     top.receiveShadow = true;
     parent.add(top);
 
-    // Bottom panel
-    const bottomGeometry = new THREE.BoxGeometry(width, thickness, depth);
+    // Bottom panel (extend for French cleat)
+    const bottomDepth = depth + cleatThickness;
+    const bottomGeometry = new THREE.BoxGeometry(width, thickness, bottomDepth);
     const bottom = new THREE.Mesh(bottomGeometry, pineMaterial);
-    bottom.position.set(0, thickness / 2, 0);
+    bottom.position.set(0, thickness / 2, -cleatThickness / 2);
     bottom.castShadow = true;
     bottom.receiveShadow = true;
     parent.add(bottom);
@@ -470,6 +489,69 @@ function createDoorHandle(parent) {
     parent.add(doorHandle);
     parent.add(leftCap);
     parent.add(rightCap);
+}
+
+function createFrenchCleat(parent) {
+    const width = cabinetDimensions.width * SCALE;
+    const height = cabinetDimensions.height * SCALE;
+    const depth = cabinetDimensions.depth * SCALE;
+    const thickness = cabinetDimensions.panelThickness * SCALE;
+    const cleatHeight = cabinetDimensions.frenchCleatHeight * SCALE;
+    const cleatThickness = cabinetDimensions.frenchCleatThickness * SCALE;
+    
+    // French cleat spanning from left panel to right panel
+    const cleatWidth = width - thickness * 2; // Span between side panels
+    const cleatGeometry = new THREE.BoxGeometry(cleatWidth, cleatHeight, cleatThickness);
+    
+    // Create cleat material (slightly different color to distinguish)
+    const cleatMaterial = new THREE.MeshStandardMaterial({
+        color: getMaterialColor(cabinetDimensions.material).clone().multiplyScalar(0.9),
+        roughness: 0.8,
+        metalness: 0.0,
+        map: pineMaterial.map
+    });
+    
+    const cleat = new THREE.Mesh(cleatGeometry, cleatMaterial);
+    
+    // Position the cleat at the back, centered vertically in the upper portion
+    cleat.position.set(
+        0, 
+        height * 0.75, // Position in upper quarter of cabinet
+        -depth / 2 - cleatThickness / 2
+    );
+    cleat.castShadow = true;
+    cleat.receiveShadow = true;
+    cleat.name = 'frenchCleat';
+    
+    parent.add(cleat);
+}
+
+// Camera view control functions
+function setFrontView() {
+    const maxDim = Math.max(cabinetDimensions.width, cabinetDimensions.depth, cabinetDimensions.height) * SCALE;
+    const scaledHeight = cabinetDimensions.height * SCALE;
+    
+    camera.position.set(0, scaledHeight / 2, maxDim * 1.5);
+    controls.target.set(0, scaledHeight / 2, 0);
+    controls.update();
+}
+
+function setLeftView() {
+    const maxDim = Math.max(cabinetDimensions.width, cabinetDimensions.depth, cabinetDimensions.height) * SCALE;
+    const scaledHeight = cabinetDimensions.height * SCALE;
+    
+    camera.position.set(-maxDim * 1.5, scaledHeight / 2, 0);
+    controls.target.set(0, scaledHeight / 2, 0);
+    controls.update();
+}
+
+function setRightView() {
+    const maxDim = Math.max(cabinetDimensions.width, cabinetDimensions.depth, cabinetDimensions.height) * SCALE;
+    const scaledHeight = cabinetDimensions.height * SCALE;
+    
+    camera.position.set(maxDim * 1.5, scaledHeight / 2, 0);
+    controls.target.set(0, scaledHeight / 2, 0);
+    controls.update();
 }
 
 // Card flip functionality
@@ -625,6 +707,24 @@ function drawRearView(ctx, width, height, thickness) {
     ctx.fillRect(offsetX, offsetY, width * scale, height * scale);
     ctx.strokeRect(offsetX, offsetY, width * scale, height * scale);
     
+    // Draw French cleat if enabled
+    if (cabinetDimensions.hasFrenchCleat) {
+        const cleatHeight = cabinetDimensions.frenchCleatHeight;
+        const cleatWidth = width - thickness * 2;
+        const cleatX = offsetX + thickness * scale;
+        const cleatY = offsetY + height * scale * 0.25 - cleatHeight * scale / 2;
+        
+        ctx.fillStyle = '#d0d0d0';
+        ctx.fillRect(cleatX, cleatY, cleatWidth * scale, cleatHeight * scale);
+        ctx.strokeStyle = '#666';
+        ctx.strokeRect(cleatX, cleatY, cleatWidth * scale, cleatHeight * scale);
+        
+        // Label
+        ctx.fillStyle = '#333';
+        ctx.font = '10px Arial';
+        ctx.fillText('French Cleat', cleatX + 5, cleatY + 15);
+    }
+    
     // Dimensions
     ctx.fillStyle = '#333';
     ctx.font = '12px Arial';
@@ -636,8 +736,11 @@ function drawSideView(ctx, depth, height, thickness, side) {
     if (!ctx) return;
     
     const canvas = ctx.canvas;
-    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / depth, (canvas.height/window.devicePixelRatio - 40) / height);
-    const offsetX = (canvas.width/window.devicePixelRatio - depth * scale) / 2;
+    const cleatThickness = cabinetDimensions.hasFrenchCleat ? cabinetDimensions.frenchCleatThickness : 0;
+    const totalDepth = depth + cleatThickness;
+    
+    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / totalDepth, (canvas.height/window.devicePixelRatio - 40) / height);
+    const offsetX = (canvas.width/window.devicePixelRatio - totalDepth * scale) / 2;
     const offsetY = (canvas.height/window.devicePixelRatio - height * scale) / 2;
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -649,6 +752,13 @@ function drawSideView(ctx, depth, height, thickness, side) {
     ctx.fillRect(offsetX, offsetY, depth * scale, height * scale);
     ctx.strokeRect(offsetX, offsetY, depth * scale, height * scale);
     
+    // French cleat extension if enabled
+    if (cabinetDimensions.hasFrenchCleat) {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillRect(offsetX + depth * scale, offsetY, cleatThickness * scale, height * scale);
+        ctx.strokeRect(offsetX + depth * scale, offsetY, cleatThickness * scale, height * scale);
+    }
+    
     // Show internal structure
     ctx.strokeStyle = '#999';
     ctx.lineWidth = 1;
@@ -657,9 +767,9 @@ function drawSideView(ctx, depth, height, thickness, side) {
     // Top and bottom panels
     ctx.beginPath();
     ctx.moveTo(offsetX, offsetY + thickness * scale);
-    ctx.lineTo(offsetX + depth * scale, offsetY + thickness * scale);
+    ctx.lineTo(offsetX + totalDepth * scale, offsetY + thickness * scale);
     ctx.moveTo(offsetX, offsetY + height * scale - thickness * scale);
-    ctx.lineTo(offsetX + depth * scale, offsetY + height * scale - thickness * scale);
+    ctx.lineTo(offsetX + totalDepth * scale, offsetY + height * scale - thickness * scale);
     ctx.stroke();
     
     ctx.setLineDash([]);
@@ -667,7 +777,7 @@ function drawSideView(ctx, depth, height, thickness, side) {
     // Dimensions
     ctx.fillStyle = '#333';
     ctx.font = '12px Arial';
-    ctx.fillText(`${depth}"`, offsetX + depth * scale / 2 - 10, offsetY + height * scale + 20);
+    ctx.fillText(`${totalDepth}"`, offsetX + totalDepth * scale / 2 - 15, offsetY + height * scale + 20);
     ctx.fillText(`${height}"`, offsetX - 30, offsetY + height * scale / 2);
 }
 
@@ -675,9 +785,12 @@ function drawTopView(ctx, width, depth, thickness) {
     if (!ctx) return;
     
     const canvas = ctx.canvas;
-    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / width, (canvas.height/window.devicePixelRatio - 40) / depth);
+    const cleatThickness = cabinetDimensions.hasFrenchCleat ? cabinetDimensions.frenchCleatThickness : 0;
+    const totalDepth = depth + cleatThickness;
+    
+    const scale = Math.min((canvas.width/window.devicePixelRatio - 40) / width, (canvas.height/window.devicePixelRatio - 40) / totalDepth);
     const offsetX = (canvas.width/window.devicePixelRatio - width * scale) / 2;
-    const offsetY = (canvas.height/window.devicePixelRatio - depth * scale) / 2;
+    const offsetY = (canvas.height/window.devicePixelRatio - totalDepth * scale) / 2;
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#333';
@@ -688,13 +801,30 @@ function drawTopView(ctx, width, depth, thickness) {
     ctx.fillRect(offsetX, offsetY, width * scale, depth * scale);
     ctx.strokeRect(offsetX, offsetY, width * scale, depth * scale);
     
+    // French cleat extension area if enabled
+    if (cabinetDimensions.hasFrenchCleat) {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillRect(offsetX, offsetY + depth * scale, width * scale, cleatThickness * scale);
+        ctx.strokeRect(offsetX, offsetY + depth * scale, width * scale, cleatThickness * scale);
+        
+        // French cleat itself (spanning between side panels)
+        const cleatWidth = width - thickness * 2;
+        const cleatX = offsetX + thickness * scale;
+        const cleatY = offsetY + depth * scale;
+        ctx.fillStyle = '#d0d0d0';
+        ctx.fillRect(cleatX, cleatY, cleatWidth * scale, cleatThickness * scale);
+        ctx.strokeStyle = '#666';
+        ctx.strokeRect(cleatX, cleatY, cleatWidth * scale, cleatThickness * scale);
+    }
+    
     // Panel structure
     ctx.strokeStyle = '#999';
     ctx.lineWidth = 1;
     
-    // Side panels
-    ctx.strokeRect(offsetX, offsetY, thickness * scale, depth * scale);
-    ctx.strokeRect(offsetX + width * scale - thickness * scale, offsetY, thickness * scale, depth * scale);
+    // Side panels (extended for French cleat)
+    const sideThickness = thickness + cleatThickness;
+    ctx.strokeRect(offsetX, offsetY, sideThickness * scale, totalDepth * scale);
+    ctx.strokeRect(offsetX + width * scale - sideThickness * scale, offsetY, sideThickness * scale, totalDepth * scale);
     
     // Back panel
     ctx.strokeRect(offsetX, offsetY, width * scale, thickness * scale);
@@ -702,15 +832,15 @@ function drawTopView(ctx, width, depth, thickness) {
     // Door opening
     ctx.strokeStyle = '#333';
     ctx.setLineDash([5, 5]);
-    ctx.strokeRect(offsetX + thickness * scale, offsetY + depth * scale - thickness * scale, 
-                   width * scale - thickness * 2 * scale, thickness * scale);
+    ctx.strokeRect(offsetX + sideThickness * scale, offsetY + totalDepth * scale - thickness * scale, 
+                   width * scale - sideThickness * 2 * scale, thickness * scale);
     ctx.setLineDash([]);
     
     // Dimensions
     ctx.fillStyle = '#333';
     ctx.font = '12px Arial';
-    ctx.fillText(`${width}"`, offsetX + width * scale / 2 - 10, offsetY + depth * scale + 20);
-    ctx.fillText(`${depth}"`, offsetX - 30, offsetY + depth * scale / 2);
+    ctx.fillText(`${width}"`, offsetX + width * scale / 2 - 10, offsetY + totalDepth * scale + 20);
+    ctx.fillText(`${totalDepth}"`, offsetX - 30, offsetY + totalDepth * scale / 2);
 }
 
 function drawBottomView(ctx, width, depth, thickness) {
@@ -725,6 +855,12 @@ function updateDimensions() {
     cabinetDimensions.panelThickness = parseFloat(document.getElementById('input-thickness').value);
     cabinetDimensions.ceilingHeight = parseFloat(document.getElementById('input-ceiling').value);
     cabinetDimensions.material = document.getElementById('input-material').value;
+    cabinetDimensions.hasFrenchCleat = document.getElementById('input-french-cleat').checked;
+    
+    if (cabinetDimensions.hasFrenchCleat) {
+        cabinetDimensions.frenchCleatHeight = parseFloat(document.getElementById('input-cleat-height').value);
+        cabinetDimensions.frenchCleatThickness = parseFloat(document.getElementById('input-cleat-thickness').value);
+    }
     
     // Update display values
     document.getElementById('display-width').textContent = cabinetDimensions.width;
@@ -733,6 +869,7 @@ function updateDimensions() {
     document.getElementById('display-thickness').textContent = cabinetDimensions.panelThickness;
     document.getElementById('display-ceiling').textContent = cabinetDimensions.ceilingHeight;
     document.getElementById('display-material').textContent = cabinetDimensions.material;
+    document.getElementById('display-french-cleat').textContent = cabinetDimensions.hasFrenchCleat ? 'Yes' : 'No';
     
     // Recreate materials with new material type
     createPBRMaterials();
@@ -843,3 +980,11 @@ window.toggleDoor = toggleDoor;
 window.resetView = resetView;
 window.toggleWireframe = toggleWireframe;
 window.updateDimensions = updateDimensions;
+window.setFrontView = setFrontView;
+window.setLeftView = setLeftView;
+window.setRightView = setRightView;
+window.toggleFrenchCleat = toggleFrenchCleat;
+window.setFrontView = setFrontView;
+window.setLeftView = setLeftView;
+window.setRightView = setRightView;
+window.toggleFrenchCleat = toggleFrenchCleat;

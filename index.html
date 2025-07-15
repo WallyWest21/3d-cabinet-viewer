@@ -291,12 +291,16 @@
                         <p><strong>Panel Thickness:</strong> <span id="display-thickness">0.75</span> inches</p>
                         <p><strong>Material:</strong> <span id="display-material">Pine Wood</span></p>
                         <p><strong>Ceiling Height:</strong> <span id="display-ceiling">8</span> feet</p>
+                        <p><strong>French Cleat:</strong> <span id="display-french-cleat">No</span></p>
                     </div>
                     
                     <div class="controls-panel">
                         <button class="control-button" onclick="toggleDoor()">Toggle Door</button>
                         <button class="control-button" onclick="resetView()">Reset View</button>
                         <button class="control-button" onclick="toggleWireframe()">Wireframe</button>
+                        <button class="control-button" onclick="setFrontView()">Front View</button>
+                        <button class="control-button" onclick="setLeftView()">Left View</button>
+                        <button class="control-button" onclick="setRightView()">Right View</button>
                     </div>
                 </div>
             </div>
@@ -378,6 +382,23 @@
                         <div class="dimension-group">
                             <label class="dimension-label">Ceiling Height (feet)</label>
                             <input type="number" class="dimension-input" id="input-ceiling" value="8" min="7" max="12" step="0.25">
+                        </div>
+                        
+                        <div class="dimension-group">
+                            <label class="dimension-label">
+                                <input type="checkbox" id="input-french-cleat" onchange="toggleFrenchCleat()"> 
+                                Install with French Cleat
+                            </label>
+                        </div>
+                        
+                        <div class="dimension-group" id="french-cleat-options" style="display: none;">
+                            <label class="dimension-label">French Cleat Height (inches)</label>
+                            <input type="number" class="dimension-input" id="input-cleat-height" value="3" min="1" max="6" step="0.25">
+                        </div>
+                        
+                        <div class="dimension-group" id="french-cleat-thickness" style="display: none;">
+                            <label class="dimension-label">French Cleat Thickness (inches)</label>
+                            <input type="number" class="dimension-input" id="input-cleat-thickness" value="0.75" min="0.5" max="2" step="0.125">
                         </div>
                         
                         <button class="update-button" onclick="updateDimensions()">Update Cabinet</button>
