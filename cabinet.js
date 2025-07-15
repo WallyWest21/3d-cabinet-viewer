@@ -27,6 +27,7 @@ let currentModelBlob = null;
 // 2D Drawing contexts
 let viewContexts = {};
 
+
 function init() {
     try {
         console.log('Initializing 3D cabinet viewer...');
