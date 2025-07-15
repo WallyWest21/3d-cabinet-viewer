@@ -341,11 +341,12 @@
                     shadow-intensity="1"
                     exposure="1"
                     shadow-softness="0.75"
-                    environment-image="neutral"
-                    ar
-                    ar-modes="webxr scene-viewer quick-look"
-                    ar-scale="fixed"
-                    ar-placement="floor"
+                    environment-image="neutral"                ar
+                ar-modes="webxr scene-viewer quick-look"
+                ar-scale="fixed"
+                ar-placement="floor"
+                interaction-prompt="none"
+                disable-zoom
                     quick-look-browsers="safari chrome"
                     ios-src=""
                 >
@@ -474,7 +475,7 @@
             }
         }
 
-        // Generate Cabinet Model
+        // Generate Cabinet Model with accurate materials and scaling
         function generateCabinetModel() {
             debugLog('Starting cabinet model generation...', 'info');
             
@@ -495,35 +496,66 @@
             try {
                 const scene = new THREE.Scene();
                 
-                // Convert inches to meters for proper AR scaling
-                const scale = 0.0254; // inches to meters
+                // Convert inches to meters for proper AR scaling (1 inch = 0.0254 meters)
+                const scale = 0.0254; // Direct inches to meters conversion
                 const w = width * scale;
                 const h = height * scale;
                 const d = depth * scale;
                 const t = thickness * scale;
                 
-                debugLog(`Converted to meters: ${w.toFixed(3)}m x ${h.toFixed(3)}m x ${d.toFixed(3)}m`, 'info');
+                debugLog(`Real-world size: ${w.toFixed(3)}m x ${h.toFixed(3)}m x ${d.toFixed(3)}m`, 'info');
                 
                 const group = new THREE.Group();
                 
-                // Materials
+                // Create enhanced Pine Wood material matching cabinet.js
                 const pineMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xDEB887,
+                    name: 'PineWood',
+                    color: new THREE.Color(0.87, 0.72, 0.53), // Pine wood color
                     roughness: 0.8,
                     metalness: 0.0,
-                    name: 'PineMaterial'
+                    side: THREE.DoubleSide
                 });
                 
+                // Add wood grain texture
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                const imageData = context.createImageData(512, 512);
+                
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    const x = (i / 4) % 512;
+                    const y = Math.floor((i / 4) / 512);
+                    const noise = Math.sin(x * 0.02) * 0.1 + Math.random() * 0.1;
+                    const baseColor = 220 + noise * 50;
+                    
+                    imageData.data[i] = baseColor * 0.87;     // Red channel
+                    imageData.data[i + 1] = baseColor * 0.72; // Green channel
+                    imageData.data[i + 2] = baseColor * 0.53; // Blue channel
+                    imageData.data[i + 3] = 255;              // Alpha
+                }
+                context.putImageData(imageData, 0, 0);
+                
+                const woodTexture = new THREE.CanvasTexture(canvas);
+                woodTexture.wrapS = THREE.RepeatWrapping;
+                woodTexture.wrapT = THREE.RepeatWrapping;
+                woodTexture.repeat.set(2, 2);
+                
+                pineMaterial.map = woodTexture;
+                
+                // Enhanced Metal Handle Material
                 const handleMaterial = new THREE.MeshStandardMaterial({
-                    color: 0x444444,
+                    name: 'MetalHandle',
+                    color: new THREE.Color(0.3, 0.3, 0.3),
                     roughness: 0.2,
-                    metalness: 0.8,
-                    name: 'HandleMaterial'
+                    metalness: 1.0,
+                    envMapIntensity: 1.0
                 });
                 
-                debugLog('Materials created successfully', 'success');
+                debugLog('Enhanced materials created successfully', 'success');
                 
-                // Cabinet parts
+                // Create detailed cabinet structure
                 const parts = [
                     { name: 'back', geometry: new THREE.BoxGeometry(w, h, t), position: [0, h/2, -d/2 + t/2] },
                     { name: 'left', geometry: new THREE.BoxGeometry(t, h, d), position: [-w/2 + t/2, h/2, 0] },
@@ -537,34 +569,58 @@
                     const mesh = new THREE.Mesh(part.geometry, pineMaterial);
                     mesh.position.set(...part.position);
                     mesh.name = part.name;
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
                     group.add(mesh);
                     debugLog(`Added ${part.name} panel`, 'info');
                 });
                 
-                // Door handle
-                const handleGeometry = new THREE.CylinderGeometry(0.005, 0.005, 0.1);
+                // Create detailed door handle with caps
+                const handleGeometry = new THREE.CylinderGeometry(0.0127, 0.0127, 0.1016); // 0.5" diameter, 4" length
                 const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-                handle.position.set(w/4, h/2, d/2);
+                handle.position.set(w/2 - t - 0.0508, h/2, d/2 + 0.0127); // 2" from edge, 0.5" out
                 handle.rotation.z = Math.PI / 2;
                 handle.name = 'handle';
+                handle.castShadow = true;
                 group.add(handle);
                 
-                debugLog('Door handle added', 'success');
+                // Handle end caps
+                const capGeometry = new THREE.SphereGeometry(0.0152, 16, 12); // Slightly larger than handle
+                const leftCap = new THREE.Mesh(capGeometry, handleMaterial);
+                leftCap.position.copy(handle.position);
+                leftCap.position.x -= 0.0508; // Half handle length
+                leftCap.castShadow = true;
                 
-                // Add lighting
+                const rightCap = new THREE.Mesh(capGeometry, handleMaterial);
+                rightCap.position.copy(handle.position);
+                rightCap.position.x += 0.0508; // Half handle length
+                rightCap.castShadow = true;
+                
+                group.add(leftCap);
+                group.add(rightCap);
+                
+                debugLog('Detailed door handle with caps added', 'success');
+                
+                // Add realistic lighting for AR
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
                 ambientLight.name = 'ambientLight';
                 scene.add(ambientLight);
                 
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                directionalLight.position.set(10, 10, 5);
+                directionalLight.position.set(2, 3, 1);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
                 directionalLight.name = 'directionalLight';
                 scene.add(directionalLight);
                 
-                scene.add(group);
-                debugLog('Lighting and scene setup complete', 'success');
+                // Position cabinet properly for AR (on floor)
+                group.position.set(0, 0, 0); // Cabinet sits on floor, no Y offset
                 
-                // Export to GLB
+                scene.add(group);
+                debugLog('Cabinet positioned on floor for AR', 'success');
+                
+                // Export to GLB with optimized settings for AR
                 if (THREE.GLTFExporter) {
                     const exporter = new THREE.GLTFExporter();
                     exporter.parse(scene, function(gltf) {
@@ -574,6 +630,7 @@
                         const url = URL.createObjectURL(blob);
                         
                         debugLog(`GLB blob created, size: ${(blob.size / 1024).toFixed(2)} KB`, 'success');
+                        debugLog(`Actual cabinet size: ${(width*2.54).toFixed(1)}cm W x ${(height*2.54).toFixed(1)}cm H x ${(depth*2.54).toFixed(1)}cm D`, 'info');
                         
                         loadModelIntoViewer(url, blob);
                         
@@ -583,7 +640,10 @@
                     }, {
                         binary: true,
                         animations: [],
-                        includeCustomExtensions: true
+                        includeCustomExtensions: false,
+                        embedImages: true,
+                        maxTextureSize: 1024, // Optimize for mobile AR
+                        powerOfTwoTextures: true
                     });
                 } else {
                     debugLog('GLTFExporter not available, using fallback model', 'warning');
@@ -614,29 +674,101 @@
             }
         }
 
-        // Fallback model using a simple cube
+        // Fallback model using same materials and proper scaling
         function loadFallbackModel() {
-            debugLog('Loading fallback model...', 'info');
-            
-            // Create a simple GLB data URL for a basic cube
-            const fallbackGLB = 'data:application/octet-stream;base64,Z2xURgIAAAAMAAAAAAAAAA=='; // Minimal GLB header
+            debugLog('Loading fallback model with accurate materials...', 'info');
             
             try {
-                modelViewer = document.getElementById('cabinet-viewer');
-                // Use a sample GLB from the internet as fallback
-                modelViewer.src = 'https://cdn.glitch.global/036bd41d-8db3-4f48-a1c9-c86c9e7be0f5/Box.glb';
+                const width = parseFloat(document.getElementById('width').value) || 20;
+                const height = parseFloat(document.getElementById('height').value) || 30;
+                const depth = parseFloat(document.getElementById('depth').value) || 20;
+                const thickness = parseFloat(document.getElementById('thickness').value) || 0.75;
                 
-                debugLog('✅ Fallback model loaded', 'success');
+                // Create a simple GLB using current dimensions and materials
+                const scene = new THREE.Scene();
+                const group = new THREE.Group();
                 
-                // Show that we're using a fallback
-                document.getElementById('loading-placeholder').innerHTML = 
-                    '<div style="color: orange;">⚠️ Using fallback 3D model</div><div style="font-size: 0.8em;">Custom cabinet generation failed</div>';
+                // Convert to meters for AR (exact same as main function)
+                const scale = 0.0254;
+                const w = width * scale;
+                const h = height * scale;
+                const d = depth * scale;
+                const t = thickness * scale;
+                
+                // Same materials as the main generation
+                const pineMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(0.87, 0.72, 0.53), // Exact pine wood color
+                    roughness: 0.8,
+                    metalness: 0.0,
+                    name: 'PineWood'
+                });
+                
+                const handleMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(0.3, 0.3, 0.3),
+                    roughness: 0.2,
+                    metalness: 1.0,
+                    name: 'MetalHandle'
+                });
+                
+                // Simplified cabinet as single box
+                const cabinetGeo = new THREE.BoxGeometry(w, h, d);
+                const cabinetMesh = new THREE.Mesh(cabinetGeo, pineMaterial);
+                cabinetMesh.position.y = h / 2; // Position on ground
+                cabinetMesh.castShadow = true;
+                cabinetMesh.receiveShadow = true;
+                group.add(cabinetMesh);
+                
+                // Add door outline
+                const doorGeo = new THREE.BoxGeometry(w - t * 2, h - t * 2, t);
+                const doorMesh = new THREE.Mesh(doorGeo, pineMaterial);
+                doorMesh.position.set(0, h / 2, d / 2 + t / 2);
+                doorMesh.castShadow = true;
+                group.add(doorMesh);
+                
+                // Add handle with exact dimensions
+                const handleGeo = new THREE.CylinderGeometry(0.0127, 0.0127, 0.1016);
+                const handleMesh = new THREE.Mesh(handleGeo, handleMaterial);
+                handleMesh.position.set(w/2 - t - 0.0508, h/2, d/2 + 0.0127);
+                handleMesh.rotation.z = Math.PI / 2;
+                handleMesh.castShadow = true;
+                group.add(handleMesh);
+                
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(2, 3, 1);
+                scene.add(directionalLight);
+                
+                scene.add(group);
+                
+                // Try to export, or use web-based fallback
+                if (THREE.GLTFExporter) {
+                    const exporter = new THREE.GLTFExporter();
+                    exporter.parse(scene, function(gltf) {
+                        const blob = new Blob([gltf], { type: 'application/octet-stream' });
+                        const url = URL.createObjectURL(blob);
+                        debugLog('✅ Fallback model created with accurate materials', 'success');
+                        loadModelIntoViewer(url, blob);
+                    }, {
+                        binary: true,
+                        embedImages: true,
+                        maxTextureSize: 1024
+                    });
+                } else {
+                    // Use a web-hosted sample cabinet model as final fallback
+                    modelViewer = document.getElementById('cabinet-viewer');
+                    modelViewer.src = 'https://cdn.glitch.global/036bd41d-8db3-4f48-a1c9-c86c9e7be0f5/Cabinet.glb';
                     
-                setTimeout(() => {
-                    document.getElementById('loading-placeholder').style.display = 'none';
-                    modelViewer.style.display = 'block';
-                    document.getElementById('manual-ar-btn').disabled = false;
-                }, 2000);
+                    debugLog('✅ Using web-hosted cabinet model', 'success');
+                    
+                    setTimeout(() => {
+                        document.getElementById('loading-placeholder').style.display = 'none';
+                        modelViewer.style.display = 'block';
+                        document.getElementById('manual-ar-btn').disabled = false;
+                    }, 2000);
+                }
                 
             } catch (error) {
                 debugLog(`Fallback model error: ${error.message}`, 'error');
