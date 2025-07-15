@@ -181,8 +181,8 @@ function createRealisticLighting() {
     const existingLights = scene.children.filter(child => child.isLight);
     existingLights.forEach(light => scene.remove(light));
 
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+    // Reduced ambient light to make the 60W bulb more prominent
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.2);
     scene.add(ambientLight);
 
     // Main directional light
@@ -220,6 +220,68 @@ function createRealisticLighting() {
     pointLight2.position.set(-3, 6, 3);
     scene.add(pointLight2);
 
+    // 60W equivalent bulb light source (approximately 800 lumens)
+    // Position it 6 feet away from the cabinet for optimal illumination
+    const bulbLight = new THREE.PointLight(0xfff4e6, 2.2, 35); // Warm white, increased intensity for distance
+    const cabinetHeight = cabinetDimensions.height * SCALE;
+    const ceilingHeight = cabinetDimensions.ceilingHeight * 12 * SCALE;
+    const sixFeetInScale = 6 * 12 * SCALE; // 6 feet = 72 inches
+    
+    // Position the light 6 feet away from the cabinet
+    bulbLight.position.set(sixFeetInScale, ceilingHeight - (ceilingHeight - cabinetHeight) * 0.3, sixFeetInScale);
+    bulbLight.castShadow = true;
+    bulbLight.shadow.mapSize.width = 2048;
+    bulbLight.shadow.mapSize.height = 2048;
+    bulbLight.shadow.camera.near = 0.1;
+    bulbLight.shadow.camera.far = 30;
+    bulbLight.shadow.bias = -0.0001;
+    
+    // Add light decay for realistic falloff
+    bulbLight.decay = 2;
+    bulbLight.power = 800; // Lumens equivalent to 60W incandescent
+    
+    scene.add(bulbLight);
+
+    // Second identical 60W bulb light source for symmetrical lighting
+    const bulbLight2 = new THREE.PointLight(0xfff4e6, 2.2, 35); // Identical settings
+    
+    // Position it symmetrically on the opposite side (negative X and Z)
+    bulbLight2.position.set(-sixFeetInScale, ceilingHeight - (ceilingHeight - cabinetHeight) * 0.3, -sixFeetInScale);
+    bulbLight2.castShadow = true;
+    bulbLight2.shadow.mapSize.width = 2048;
+    bulbLight2.shadow.mapSize.height = 2048;
+    bulbLight2.shadow.camera.near = 0.1;
+    bulbLight2.shadow.camera.far = 30;
+    bulbLight2.shadow.bias = -0.0001;
+    
+    // Add light decay for realistic falloff
+    bulbLight2.decay = 2;
+    bulbLight2.power = 800; // Lumens equivalent to 60W incandescent
+    
+    scene.add(bulbLight2);
+
+    // Optional: Add visible light bulb representations
+    const bulbGeometry = new THREE.SphereGeometry(0.05, 16, 12);
+    const bulbMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xfff4e6, 
+        transparent: true, 
+        opacity: 0.8,
+        emissive: 0xfff4e6,
+        emissiveIntensity: 0.3
+    });
+    
+    // First bulb
+    const bulbMesh = new THREE.Mesh(bulbGeometry, bulbMaterial);
+    bulbMesh.position.copy(bulbLight.position);
+    bulbMesh.userData.isEnvironment = true; // Mark as environment object
+    scene.add(bulbMesh);
+    
+    // Second bulb
+    const bulbMesh2 = new THREE.Mesh(bulbGeometry, bulbMaterial.clone());
+    bulbMesh2.position.copy(bulbLight2.position);
+    bulbMesh2.userData.isEnvironment = true; // Mark as environment object
+    scene.add(bulbMesh2);
+
     createEnvironmentMap();
 }
 
@@ -245,11 +307,14 @@ function createEnvironmentMap() {
 }
 
 function createEnvironment() {
-    // Clear existing environment
+    // Clear existing environment and lights
     const existingEnv = scene.children.filter(child => 
-        child.userData && child.userData.isEnvironment
+        (child.userData && child.userData.isEnvironment) || child.isLight
     );
     existingEnv.forEach(obj => scene.remove(obj));
+
+    // Recreate lighting after clearing
+    createRealisticLighting();
 
     // Floor
     const floorGeometry = new THREE.PlaneGeometry(50, 50);
