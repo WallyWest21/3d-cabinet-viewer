@@ -1095,60 +1095,136 @@ function exportCabinetToGLB() {
 
 async function enterARMode() {
     try {
+        console.log('Entering AR mode...');
         const arButton = document.getElementById('ar-button');
-        arButton.textContent = 'Loading...';
-        arButton.disabled = true;
+        if (arButton) {
+            arButton.textContent = 'Loading...';
+            arButton.disabled = true;
+        }
         
-        // Export current cabinet to GLB
-        const modelUrl = await exportCabinetToGLB();
-        
-        // Update model-viewer with the new model
-        const modelViewer = document.getElementById('model-viewer');
-        modelViewer.src = modelUrl;
-        
-        // Set up proper AR positioning and scale
-        const cabinetHeightInMeters = (cabinetDimensions.height * 0.0254); // inches to meters
-        const cabinetWidthInMeters = (cabinetDimensions.width * 0.0254);
-        const cabinetDepthInMeters = (cabinetDimensions.depth * 0.0254);
-        
-        // Calculate proper AR scale to match real-world dimensions
-        const maxDimension = Math.max(cabinetWidthInMeters, cabinetDepthInMeters, cabinetHeightInMeters);
-        
-        // Set model-viewer attributes for AR
-        modelViewer.setAttribute('ar-placement', 'floor');
-        modelViewer.setAttribute('ar-scale', 'fixed');
-        
-        // Remove auto-rotate for AR mode
-        modelViewer.removeAttribute('auto-rotate');
-        
-        // Position model at proper height (cabinet sitting on floor)
-        modelViewer.style.setProperty('--ar-position', `0 ${cabinetHeightInMeters/2} 0`);
-        
-        // Show AR viewer
+        // Show AR viewer overlay
         const arViewer = document.getElementById('ar-viewer');
         arViewer.style.display = 'block';
         
-        // Wait for model to load then enter AR
-        modelViewer.addEventListener('load', () => {
-            // Check if AR is available
-            if (modelViewer.canActivateAR) {
-                modelViewer.activateAR();
-            } else {
-                alert('AR not available on this device. You can still view the 3D model.');
-            }
-        }, { once: true });
+        const modelViewer = document.getElementById('model-viewer');
         
-        arButton.textContent = 'AR View';
-        arButton.disabled = false;
+        // Try to generate GLB from current cabinet
+        let modelUrl = null;
+        
+        if (gltfExporter && cabinet) {
+            try {
+                console.log('Generating cabinet GLB...');
+                modelUrl = await exportCabinetToGLB();
+                console.log('GLB generated successfully');
+            } catch (error) {
+                console.warn('GLB generation failed:', error);
+            }
+        }
+        
+        // Fallback: Use a simple cabinet model  
+        if (!modelUrl) {
+            console.log('Using fallback cabinet model...');
+            modelUrl = await createSimpleCabinetBlob();
+        }
+        
+        // Set the model source
+        if (modelUrl) {
+            modelViewer.src = modelUrl;
+            console.log('Model set in model-viewer');
+        } else {
+            throw new Error('Failed to create model');
+        }
+        
+        // Reset button
+        if (arButton) {
+            arButton.textContent = 'AR View';
+            arButton.disabled = false;
+        }
+        
+        console.log('AR mode ready! Use the "View in AR" button in the viewer.');
         
     } catch (error) {
         console.error('Failed to enter AR mode:', error);
-        alert('Failed to load AR mode. Please try again.');
         
+        // Hide AR viewer on error
+        const arViewer = document.getElementById('ar-viewer');
+        arViewer.style.display = 'none';
+        
+        // Reset button
         const arButton = document.getElementById('ar-button');
-        arButton.textContent = 'AR View';
-        arButton.disabled = false;
+        if (arButton) {
+            arButton.textContent = 'AR View';
+            arButton.disabled = false;
+        }
+        
+        alert('Failed to load AR mode. This feature requires a compatible device and browser.');
     }
+}
+
+async function createSimpleCabinetBlob() {
+    return new Promise((resolve) => {
+        try {
+            // Create a simple cabinet using current dimensions
+            const scene = new THREE.Scene();
+            const group = new THREE.Group();
+            
+            // Convert to meters for AR
+            const width = cabinetDimensions.width * 0.0254;
+            const height = cabinetDimensions.height * 0.0254;
+            const depth = cabinetDimensions.depth * 0.0254;
+            const thickness = cabinetDimensions.panelThickness * 0.0254;
+            
+            // Simple cabinet body as one piece
+            const cabinetGeo = new THREE.BoxGeometry(width, height, depth);
+            const cabinetMaterial = new THREE.MeshStandardMaterial({ 
+                color: getMaterialColor(cabinetDimensions.material),
+                roughness: 0.8,
+                metalness: 0.0
+            });
+            
+            const cabinetMesh = new THREE.Mesh(cabinetGeo, cabinetMaterial);
+            cabinetMesh.position.y = height / 2; // Position on ground
+            group.add(cabinetMesh);
+            
+            // Add a simple door outline
+            const doorGeo = new THREE.BoxGeometry(width - thickness * 2, height - thickness * 2, thickness);
+            const doorMesh = new THREE.Mesh(doorGeo, cabinetMaterial);
+            doorMesh.position.set(0, height / 2, depth / 2 + thickness / 2);
+            group.add(doorMesh);
+            
+            // Add handle
+            const handleGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.1, 8);
+            const handleMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x444444,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const handleMesh = new THREE.Mesh(handleGeo, handleMaterial);
+            handleMesh.position.set(width/2 - 0.05, height/2, depth/2 + 0.02);
+            handleMesh.rotation.z = Math.PI / 2;
+            group.add(handleMesh);
+            
+            scene.add(group);
+            
+            // Export to GLB
+            if (gltfExporter) {
+                gltfExporter.parse(scene, (result) => {
+                    const blob = new Blob([result], { type: 'model/gltf-binary' });
+                    const url = URL.createObjectURL(blob);
+                    resolve(url);
+                }, { 
+                    binary: true,
+                    embedImages: true,
+                    maxTextureSize: 512
+                });
+            } else {
+                resolve(null);
+            }
+        } catch (error) {
+            console.error('Error creating simple cabinet:', error);
+            resolve(null);
+        }
+    });
 }
 
 function exitARMode() {
