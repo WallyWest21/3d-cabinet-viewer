@@ -20,104 +20,151 @@ const SCALE = 0.1; // Scale factor for better viewing
 // Materials
 let pineMaterial, handleMaterial, floorMaterial;
 
+// AR and GLB Export variables
+let gltfExporter;
+let currentModelBlob = null;
+
 // 2D Drawing contexts
 let viewContexts = {};
 
 function init() {
-    // Create scene
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xfafafa);
-
-    // Create camera
-    camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-    
-    // Create renderer with enhanced settings optimized for mobile
-    const canvas = document.getElementById('canvas');
-    renderer = new THREE.WebGLRenderer({ 
-        canvas: canvas, 
-        antialias: window.innerWidth > 768, // Reduce antialiasing on mobile for performance
-        powerPreference: "high-performance"
-    });
-    
-    // Mobile-optimized pixel ratio
-    renderer.setPixelRatio(window.innerWidth <= 768 ? Math.min(window.devicePixelRatio, 2) : window.devicePixelRatio);
-    
-    // Enable shadows with enhanced settings
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    
-    // Enable tone mapping for realistic lighting
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    
-    // Enable physically correct lights
-    renderer.physicallyCorrectLights = true;
-
-    // Create controls with mobile optimization
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    
-    // Mobile-friendly controls
-    controls.enableZoom = true;
-    controls.enableRotate = true;
-    controls.enablePan = true;
-    
-    // Touch sensitivity for mobile
-    controls.rotateSpeed = 1.0;
-    controls.zoomSpeed = 1.2;
-    controls.panSpeed = 0.8;
-    
-    // Limit zoom and rotation for better mobile experience
-    controls.minDistance = 15;
-    controls.maxDistance = 50;
-    controls.maxPolarAngle = Math.PI; // Allow full rotation
-    
-    // Touch-friendly settings
-    controls.touches = {
-        ONE: THREE.TOUCH.ROTATE,
-        TWO: THREE.TOUCH.DOLLY_PAN
-    };
-
-    // Create materials with PBR
-    createPBRMaterials();
-
-    // Create lighting
-    createRealisticLighting();
-
-    // Create environment
-    createEnvironment();
-
-    // Create cabinet
-    createCabinet();
-
-    // Position camera and controls
-    updateCameraAndCabinet();
-
-    // Set front view as default when page loads
-    setTimeout(() => {
-        setFrontView();
-    }, 100);
-
-    // Don't initialize 2D views immediately - wait until card is flipped
-    // initialize2DViews();
-
-    // Start animation loop
-    animate();
-    
-    // Add mobile touch event listeners
-    if (window.innerWidth <= 768) {
-        canvas.addEventListener('touchstart', function(e) {
-            e.preventDefault(); // Prevent default touch behaviors like scrolling
-        }, { passive: false });
+    try {
+        console.log('Initializing 3D cabinet viewer...');
         
-        canvas.addEventListener('touchmove', function(e) {
-            e.preventDefault(); // Prevent page scrolling while interacting with 3D model
-        }, { passive: false });
-    }
+        // Check if Three.js is loaded
+        if (typeof THREE === 'undefined') {
+            console.error('Three.js not loaded');
+            return;
+        }
+        
+        // Create scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfafafa);
+        console.log('Scene created');
 
-    // Add window resize listener
-    window.addEventListener('resize', onWindowResize, false);
+        // Create camera
+        camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+        console.log('Camera created');
+        
+        // Create renderer with enhanced settings optimized for mobile
+        const canvas = document.getElementById('canvas');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return;
+        }
+        
+        renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas, 
+            antialias: window.innerWidth > 768, // Reduce antialiasing on mobile for performance
+            powerPreference: "high-performance"
+        });
+        console.log('Renderer created');
+        
+        // Mobile-optimized pixel ratio
+        renderer.setPixelRatio(window.innerWidth <= 768 ? Math.min(window.devicePixelRatio, 2) : window.devicePixelRatio);
+        
+        // Enable shadows with enhanced settings
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        // Enable tone mapping for realistic lighting
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        
+        // Enable physically correct lights
+        renderer.physicallyCorrectLights = true;
+        
+        // Set initial canvas size
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        renderer.setSize(rect.width, rect.height);
+        camera.aspect = rect.width / rect.height;
+        camera.updateProjectionMatrix();
+        console.log('Canvas sized:', rect.width, 'x', rect.height);
+
+        // Create controls with mobile optimization
+        if (typeof THREE.OrbitControls === 'undefined') {
+            console.error('OrbitControls not loaded');
+            return;
+        }
+        
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        console.log('Controls created');
+        
+        // Mobile-friendly controls
+        controls.enableZoom = true;
+        controls.enableRotate = true;
+        controls.enablePan = true;
+        
+        // Touch sensitivity for mobile
+        controls.rotateSpeed = 1.0;
+        controls.zoomSpeed = 1.2;
+        controls.panSpeed = 0.8;
+        
+        // Limit zoom and rotation for better mobile experience
+        controls.minDistance = 15;
+        controls.maxDistance = 50;
+        controls.maxPolarAngle = Math.PI; // Allow full rotation
+        
+        // Touch-friendly settings
+        controls.touches = {
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN
+        };
+
+        // Create materials with PBR
+        createPBRMaterials();
+        console.log('Materials created');
+
+        // Create lighting
+        createRealisticLighting();
+        console.log('Lighting created');
+
+        // Create environment
+        createEnvironment();
+        console.log('Environment created');
+
+        // Create cabinet
+        createCabinet();
+        console.log('Cabinet created');
+
+        // Position camera and controls
+        updateCameraAndCabinet();
+        console.log('Camera positioned');
+
+        // Set front view as default when page loads
+        setTimeout(() => {
+            setFrontView();
+        }, 100);
+
+        // Don't initialize 2D views immediately - wait until card is flipped
+        // initialize2DViews();
+
+        // Start animation loop
+        animate();
+        console.log('Animation started');
+        
+        // Add mobile touch event listeners
+        if (window.innerWidth <= 768) {
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault(); // Prevent default touch behaviors like scrolling
+            }, { passive: false });
+            
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault(); // Prevent page scrolling while interacting with 3D model
+            }, { passive: false });
+        }
+
+        // Add window resize listener
+        window.addEventListener('resize', onWindowResize, false);
+        
+        console.log('3D cabinet viewer initialized successfully');
+        
+    } catch (error) {
+        console.error('Error initializing 3D cabinet viewer:', error);
+    }
 }
 
 function updateCameraAndCabinet() {
@@ -827,6 +874,13 @@ function updateDimensions() {
     
     // Update 2D views
     draw2DViews();
+    
+    // Clear cached AR model so it will be regenerated with new dimensions
+    if (currentModelBlob) {
+        const modelViewer = document.getElementById('model-viewer');
+        URL.revokeObjectURL(modelViewer.src);
+        currentModelBlob = null;
+    }
 }
 
 function toggleDoor() {
@@ -943,7 +997,207 @@ function onWindowResize() {
 }
 
 // Initialize when page loads
-init();
+window.addEventListener('load', function() {
+    console.log('Window loaded, initializing cabinet viewer...');
+    
+    // Small delay to ensure all scripts are loaded
+    setTimeout(() => {
+        init();
+    }, 500);
+});
+
+// AR and Model Export Functions
+function initializeGLTFExporter() {
+    if (typeof THREE.GLTFExporter !== 'undefined') {
+        gltfExporter = new THREE.GLTFExporter();
+    } else {
+        console.warn('GLTFExporter not available');
+    }
+}
+
+function createCabinetForExport() {
+    // Create a clean cabinet model for AR export (without environment objects)
+    const exportGroup = new THREE.Group();
+    exportGroup.name = 'cabinetExport';
+    
+    // Clone the current cabinet
+    const cabinetClone = cabinet.clone();
+    
+    // Remove any environment objects and keep only cabinet parts
+    cabinetClone.traverse((child) => {
+        if (child.isMesh && !child.userData.isEnvironment) {
+            // Ensure proper material assignment
+            if (child.material === pineMaterial || child.material.name === 'PineWood') {
+                child.material = pineMaterial.clone();
+            } else if (child.material === handleMaterial || child.material.name === 'MetalHandle') {
+                child.material = handleMaterial.clone();
+            }
+        }
+    });
+    
+    exportGroup.add(cabinetClone);
+    
+    // Position cabinet for AR at proper height
+    const realWorldScale = 1; // Use real-world scale (inches to meters conversion)
+    const cabinetHeightInMeters = (cabinetDimensions.height * 0.0254); // inches to meters
+    const ceilingHeightInMeters = (cabinetDimensions.ceilingHeight * 12 * 0.0254); // feet to meters
+    
+    // Position cabinet so it sits on the floor and aligns with ceiling height
+    const groundLevel = 0;
+    const cabinetBottomY = groundLevel;
+    const cabinetTopY = cabinetBottomY + cabinetHeightInMeters;
+    
+    // Scale the group to real-world size
+    const scaleRatio = realWorldScale / SCALE;
+    exportGroup.scale.setScalar(scaleRatio);
+    
+    // Position cabinet at ground level
+    exportGroup.position.set(0, cabinetHeightInMeters / 2, 0);
+    
+    return exportGroup;
+}
+
+function exportCabinetToGLB() {
+    return new Promise((resolve, reject) => {
+        if (!gltfExporter) {
+            initializeGLTFExporter();
+            if (!gltfExporter) {
+                reject(new Error('GLTF Exporter not available'));
+                return;
+            }
+        }
+        
+        const exportCabinet = createCabinetForExport();
+        
+        const options = {
+            binary: true,
+            embedImages: true,
+            includeCustomExtensions: false,
+            onlyVisible: true,
+            truncateDrawRange: true,
+            maxTextureSize: 1024 // Optimize for mobile AR
+        };
+        
+        gltfExporter.parse(
+            exportCabinet,
+            (result) => {
+                currentModelBlob = new Blob([result], { type: 'model/gltf-binary' });
+                resolve(URL.createObjectURL(currentModelBlob));
+            },
+            (error) => {
+                console.error('GLB export failed:', error);
+                reject(error);
+            },
+            options
+        );
+    });
+}
+
+async function enterARMode() {
+    try {
+        const arButton = document.getElementById('ar-button');
+        arButton.textContent = 'Loading...';
+        arButton.disabled = true;
+        
+        // Export current cabinet to GLB
+        const modelUrl = await exportCabinetToGLB();
+        
+        // Update model-viewer with the new model
+        const modelViewer = document.getElementById('model-viewer');
+        modelViewer.src = modelUrl;
+        
+        // Set up proper AR positioning and scale
+        const cabinetHeightInMeters = (cabinetDimensions.height * 0.0254); // inches to meters
+        const cabinetWidthInMeters = (cabinetDimensions.width * 0.0254);
+        const cabinetDepthInMeters = (cabinetDimensions.depth * 0.0254);
+        
+        // Calculate proper AR scale to match real-world dimensions
+        const maxDimension = Math.max(cabinetWidthInMeters, cabinetDepthInMeters, cabinetHeightInMeters);
+        
+        // Set model-viewer attributes for AR
+        modelViewer.setAttribute('ar-placement', 'floor');
+        modelViewer.setAttribute('ar-scale', 'fixed');
+        
+        // Remove auto-rotate for AR mode
+        modelViewer.removeAttribute('auto-rotate');
+        
+        // Position model at proper height (cabinet sitting on floor)
+        modelViewer.style.setProperty('--ar-position', `0 ${cabinetHeightInMeters/2} 0`);
+        
+        // Show AR viewer
+        const arViewer = document.getElementById('ar-viewer');
+        arViewer.style.display = 'block';
+        
+        // Wait for model to load then enter AR
+        modelViewer.addEventListener('load', () => {
+            // Check if AR is available
+            if (modelViewer.canActivateAR) {
+                modelViewer.activateAR();
+            } else {
+                alert('AR not available on this device. You can still view the 3D model.');
+            }
+        }, { once: true });
+        
+        arButton.textContent = 'AR View';
+        arButton.disabled = false;
+        
+    } catch (error) {
+        console.error('Failed to enter AR mode:', error);
+        alert('Failed to load AR mode. Please try again.');
+        
+        const arButton = document.getElementById('ar-button');
+        arButton.textContent = 'AR View';
+        arButton.disabled = false;
+    }
+}
+
+function exitARMode() {
+    const arViewer = document.getElementById('ar-viewer');
+    arViewer.style.display = 'none';
+    
+    const modelViewer = document.getElementById('model-viewer');
+    
+    // Clean up model URL to free memory
+    if (currentModelBlob) {
+        URL.revokeObjectURL(modelViewer.src);
+        currentModelBlob = null;
+    }
+    
+    // Reset model-viewer attributes
+    modelViewer.setAttribute('auto-rotate', '');
+    modelViewer.setAttribute('auto-rotate-delay', '3000');
+}
+
+// Initialize GLTF Exporter when Three.js is ready
+function initializeAfterThreeJS() {
+    // Wait for Three.js to fully load
+    if (typeof THREE !== 'undefined') {
+        console.log('Three.js loaded successfully');
+        
+        // Try to initialize GLTF Exporter (optional for AR)
+        if (THREE.GLTFExporter) {
+            initializeGLTFExporter();
+            console.log('GLTFExporter available - AR functionality enabled');
+        } else {
+            console.warn('GLTFExporter not available - AR functionality disabled');
+            // Disable AR button if GLTFExporter is not available
+            setTimeout(() => {
+                const arButton = document.getElementById('ar-button');
+                if (arButton) {
+                    arButton.textContent = 'AR Not Available';
+                    arButton.disabled = true;
+                    arButton.style.opacity = '0.5';
+                }
+            }, 1000);
+        }
+    } else {
+        console.log('Waiting for Three.js to load...');
+        setTimeout(initializeAfterThreeJS, 100);
+    }
+}
+
+// Start initialization
+initializeAfterThreeJS();
 
 // Make functions globally available for HTML onclick handlers
 window.flipCard = flipCard;
@@ -954,3 +1208,5 @@ window.updateDimensions = updateDimensions;
 window.setFrontView = setFrontView;
 window.setLeftView = setLeftView;
 window.setRightView = setRightView;
+window.enterARMode = enterARMode;
+window.exitARMode = exitARMode;

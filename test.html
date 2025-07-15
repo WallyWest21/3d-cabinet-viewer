@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .test-container {
+            width: 100%;
+            height: 400px;
+            background: #fafafa;
+            border: 2px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #test-canvas {
+            width: 100%;
+            height: 100%;
+            background: #eee;
+        }
+    </style>
+</head>
+<body>
+    <h1>3D Cabinet Viewer Test</h1>
+    <p>Testing basic Three.js functionality...</p>
+    
+    <div class="test-container">
+        <canvas id="test-canvas"></canvas>
+    </div>
+    
+    <div id="status">Loading...</div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const status = document.getElementById('status');
+        
+        try {
+            status.textContent = 'Three.js loaded: ' + (typeof THREE !== 'undefined');
+            
+            if (typeof THREE !== 'undefined') {
+                // Create simple scene
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x87CEEB);
+                
+                const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                
+                const canvas = document.getElementById('test-canvas');
+                const renderer = new THREE.WebGLRenderer({ canvas: canvas });
+                
+                // Set size
+                const container = canvas.parentElement;
+                const rect = container.getBoundingClientRect();
+                renderer.setSize(rect.width, rect.height);
+                camera.aspect = rect.width / rect.height;
+                camera.updateProjectionMatrix();
+                
+                // Create a simple cube
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                const cube = new THREE.Mesh(geometry, material);
+                scene.add(cube);
+                
+                camera.position.z = 3;
+                
+                // Render loop
+                function animate() {
+                    requestAnimationFrame(animate);
+                    cube.rotation.x += 0.01;
+                    cube.rotation.y += 0.01;
+                    renderer.render(scene, camera);
+                }
+                
+                animate();
+                status.textContent = 'Three.js working! Green cube should be spinning.';
+            } else {
+                status.textContent = 'Three.js failed to load!';
+            }
+        } catch (error) {
+            status.textContent = 'Error: ' + error.message;
+            console.error(error);
+        }
+    </script>
+</body>
+</html>
