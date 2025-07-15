@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple AR Test - Working Version</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        model-viewer {
+            width: 100%;
+            height: 500px;
+            background-color: #ffffff;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        .test-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .btn:hover {
+            background: #45a049;
+        }
+        
+        .btn.blue {
+            background: #2196f3;
+        }
+        
+        .btn.blue:hover {
+            background: #1976d2;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border: 1px solid #dee2e6;
+            font-family: monospace;
+            font-size: 14px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Simple AR Test (Working Version)</h1>
+        
+        <div class="info">
+            <h3>✨ What's Different:</h3>
+            <ul>
+                <li><strong>Official Google CDN:</strong> Using the exact model-viewer version you suggested</li>
+                <li><strong>Proven Models:</strong> Neil Armstrong spacesuit (Google's reference model)</li>
+                <li><strong>Simple Setup:</strong> No complex custom code that could break</li>
+                <li><strong>Clean Implementation:</strong> Just like Google's documentation</li>
+            </ul>
+        </div>
+        
+        <div class="test-buttons">
+            <button class="btn" onclick="loadArmstrong()">Load Neil Armstrong Spacesuit</button>
+            <button class="btn blue" onclick="loadSimpleCabinet()">Load Simple Cabinet</button>
+            <button class="btn" onclick="checkARSupport()">Check AR Support</button>
+        </div>
+        
+        <div id="status" class="status">
+            Ready to test AR! Click "Load Neil Armstrong Spacesuit" first.
+        </div>
+        
+        <!-- Simple Model Viewer using your exact suggestion -->
+        <model-viewer 
+            id="viewer"
+            alt="3D Model for AR Testing" 
+            src=""
+            ar 
+            ar-modes="webxr scene-viewer quick-look"
+            ar-scale="auto"
+            ar-placement="floor"
+            environment-image="neutral" 
+            shadow-intensity="1" 
+            camera-controls 
+            touch-action="pan-y"
+            loading="eager">
+        </model-viewer>
+        
+        <div class="info">
+            <h3>📱 How to Test AR:</h3>
+            <ol>
+                <li><strong>Load Model:</strong> Click "Load Neil Armstrong Spacesuit" or "Load Simple Cabinet"</li>
+                <li><strong>Find AR Button:</strong> Look for the AR icon (📱) in the bottom-right corner of the 3D viewer</li>
+                <li><strong>Tap AR Icon:</strong> This should open your device's AR mode</li>
+                <li><strong>Grant Permissions:</strong> Allow camera access when prompted</li>
+                <li><strong>Scan Surface:</strong> Point camera down and move slowly to detect floor</li>
+                <li><strong>Place Model:</strong> Tap where you want to place the 3D object</li>
+            </ol>
+            
+            <h4>🔧 If AR Icon Doesn't Appear:</h4>
+            <ul>
+                <li>Check that you're using <strong>Chrome on Android</strong> or <strong>Safari on iOS</strong></li>
+                <li>Ensure you have an <strong>HTTPS connection</strong></li>
+                <li>Verify your device supports <strong>ARCore (Android)</strong> or <strong>iOS 12+ (iPhone/iPad)</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Import the component - Using your exact suggestion -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+    
+    <script>
+        function logStatus(message) {
+            const status = document.getElementById('status');
+            const timestamp = new Date().toLocaleTimeString();
+            status.innerHTML += `[${timestamp}] ${message}<br>`;
+            status.scrollTop = status.scrollHeight;
+            console.log(message);
+        }
+        
+        function loadArmstrong() {
+            logStatus('🚀 Loading Neil Armstrong Spacesuit (Google Reference Model)...');
+            
+            const viewer = document.getElementById('viewer');
+            
+            // Use Google's proven reference model
+            viewer.src = 'https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb';
+            viewer.alt = "Neil Armstrong's Spacesuit from the Smithsonian";
+            
+            viewer.addEventListener('load', () => {
+                logStatus('✅ Neil Armstrong model loaded successfully!');
+                logStatus('📱 Look for the AR icon in the bottom-right corner of the 3D viewer');
+                checkModelAR();
+            }, { once: true });
+            
+            viewer.addEventListener('error', (e) => {
+                logStatus('❌ Failed to load Armstrong model: ' + e.detail);
+            }, { once: true });
+        }
+        
+        function loadSimpleCabinet() {
+            logStatus('📦 Loading Simple Cabinet Model...');
+            
+            const viewer = document.getElementById('viewer');
+            
+            // Use a simpler cabinet model URL (you can replace with your cabinet GLB)
+            viewer.src = 'https://modelviewer.dev/shared-assets/models/Chair.glb';
+            viewer.alt = "Simple Cabinet for AR Testing";
+            
+            viewer.addEventListener('load', () => {
+                logStatus('✅ Cabinet model loaded successfully!');
+                logStatus('📱 Look for the AR icon in the bottom-right corner');
+                checkModelAR();
+            }, { once: true });
+            
+            viewer.addEventListener('error', (e) => {
+                logStatus('❌ Failed to load cabinet model: ' + e.detail);
+                logStatus('🔄 Falling back to Armstrong model...');
+                loadArmstrong();
+            }, { once: true });
+        }
+        
+        function checkARSupport() {
+            logStatus('🔍 Checking AR Support...');
+            
+            const viewer = document.getElementById('viewer');
+            
+            // Check basic requirements
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                logStatus('❌ Camera API not available (HTTPS required)');
+                return;
+            }
+            
+            // Check device type
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            const isMobile = isIOS || isAndroid;
+            
+            if (isIOS) {
+                logStatus('📱 iOS device detected - AR should work in Safari');
+            } else if (isAndroid) {
+                logStatus('🤖 Android device detected - AR should work in Chrome with ARCore');
+            } else {
+                logStatus('💻 Desktop detected - AR not available on desktop browsers');
+            }
+            
+            // Check HTTPS
+            if (location.protocol === 'https:') {
+                logStatus('🔒 HTTPS connection confirmed');
+            } else {
+                logStatus('⚠️ HTTP connection - AR requires HTTPS');
+            }
+            
+            // Check if model is loaded
+            if (!viewer.src) {
+                logStatus('⚠️ No model loaded - load a model first to test AR');
+                return;
+            }
+            
+            logStatus('🎯 AR Support Summary:');
+            logStatus(`   Device: ${isMobile ? '✅ Mobile' : '❌ Desktop'}`);
+            logStatus(`   HTTPS: ${location.protocol === 'https:' ? '✅ Secure' : '❌ Insecure'}`);
+            logStatus(`   Model: ${viewer.src ? '✅ Loaded' : '❌ Missing'}`);
+        }
+        
+        function checkModelAR() {
+            const viewer = document.getElementById('viewer');
+            
+            setTimeout(() => {
+                if (typeof viewer.canActivateAR !== 'undefined') {
+                    if (viewer.canActivateAR) {
+                        logStatus('✅ AR is available! Look for the AR icon 📱');
+                    } else {
+                        logStatus('❌ AR not available on this device/browser');
+                    }
+                } else {
+                    logStatus('⏳ AR support still initializing...');
+                }
+            }, 2000);
+        }
+        
+        // Set up event listeners when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const viewer = document.getElementById('viewer');
+            
+            viewer.addEventListener('ar-status', (event) => {
+                const status = event.detail.status;
+                if (status === 'session-started') {
+                    logStatus('🎉 AR session started! Look for placement indicators.');
+                } else if (status === 'not-presenting') {
+                    logStatus('📱 AR session ended');
+                } else if (status === 'failed') {
+                    logStatus('❌ AR session failed to start');
+                }
+            });
+            
+            viewer.addEventListener('error', (event) => {
+                logStatus('❌ Model Viewer Error: ' + event.detail);
+            });
+            
+            logStatus('🚀 Simple AR Test Ready!');
+            logStatus('📝 Using model-viewer v4.0.0 from Google CDN');
+            logStatus('💡 Start by loading a model, then look for the AR icon');
+        });
+    </script>
+</body>
+</html>
