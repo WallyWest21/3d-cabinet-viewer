@@ -1108,6 +1108,10 @@ async function enterARMode() {
         
         const modelViewer = document.getElementById('model-viewer');
         
+        // Clear any existing model first
+        modelViewer.src = '';
+        modelViewer.removeAttribute('ios-src');
+        
         // Try to generate GLB from current cabinet
         let modelUrl = null;
         
@@ -1127,16 +1131,42 @@ async function enterARMode() {
             modelUrl = await createSimpleCabinetBlob();
         }
         
-        // Set the model source for both regular and iOS
+        // Set the model source for both regular and iOS with improved error handling
         if (modelUrl) {
+            // Set up model-viewer for AR optimization
+            modelViewer.setAttribute('ar-scale', 'auto');
+            modelViewer.setAttribute('ar-placement', 'floor');
+            modelViewer.setAttribute('loading', 'eager');
+            
             modelViewer.src = modelUrl;
             modelViewer.setAttribute('ios-src', modelUrl);
             console.log('Model set in model-viewer');
             
-            // Wait for model to load
-            await new Promise((resolve) => {
-                modelViewer.addEventListener('load', resolve, { once: true });
-                setTimeout(resolve, 3000); // Fallback timeout
+            // Wait for model to load with timeout
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    modelViewer.removeEventListener('load', onLoad);
+                    modelViewer.removeEventListener('error', onError);
+                    resolve(); // Don't reject, just continue
+                }, 10000); // 10 second timeout
+                
+                const onLoad = () => {
+                    clearTimeout(timeout);
+                    modelViewer.removeEventListener('load', onLoad);
+                    modelViewer.removeEventListener('error', onError);
+                    resolve();
+                };
+                
+                const onError = (error) => {
+                    clearTimeout(timeout);
+                    modelViewer.removeEventListener('load', onLoad);
+                    modelViewer.removeEventListener('error', onError);
+                    console.error('Model loading error:', error);
+                    resolve(); // Don't reject, continue with AR attempt
+                };
+                
+                modelViewer.addEventListener('load', onLoad, { once: true });
+                modelViewer.addEventListener('error', onError, { once: true });
             });
         } else {
             throw new Error('Failed to create model');
@@ -1172,7 +1202,7 @@ async function enterARMode() {
             arButton.disabled = false;
         }
         
-        alert('Failed to load AR mode. This feature requires a compatible device and browser with HTTPS.');
+        alert('Failed to load AR mode. This feature requires a compatible device and browser with HTTPS. Try using a simpler cabinet configuration.');
     }
 }
 
@@ -1269,30 +1299,85 @@ function exitARMode() {
 function initializeModelViewer() {
     const modelViewer = document.getElementById('model-viewer');
     if (modelViewer) {
-        // Add event listeners for AR functionality
+        // Add event listeners for AR functionality with improved error handling
         modelViewer.addEventListener('ar-status', (event) => {
             console.log('AR Status:', event.detail.status);
             if (event.detail.status === 'session-started') {
                 console.log('AR session started successfully');
             } else if (event.detail.status === 'not-presenting') {
                 console.log('AR session ended');
+            } else if (event.detail.status === 'failed') {
+                console.error('AR session failed');
+                handleARSessionFailure();
             }
         });
         
         modelViewer.addEventListener('error', (event) => {
             console.error('Model Viewer Error:', event.detail);
+            handleARSessionFailure();
         });
         
         modelViewer.addEventListener('load', () => {
             console.log('Model loaded successfully');
         });
         
-        // Check AR support
+        // AR tracking events
         modelViewer.addEventListener('ar-tracking', (event) => {
             console.log('AR Tracking:', event.detail.status);
         });
         
-        console.log('Model Viewer initialized');
+        // Handle unhandled promise rejections that might cause crashes
+        window.addEventListener('unhandledrejection', (event) => {
+            if (event.reason && event.reason.toString().includes('AR')) {
+                console.error('AR-related unhandled rejection:', event.reason);
+                handleARSessionFailure();
+                event.preventDefault(); // Prevent default error handling
+            }
+        });
+        
+        console.log('Model Viewer initialized with enhanced AR error handling');
+    }
+}
+
+function handleARSessionFailure() {
+    console.log('Handling AR session failure...');
+    
+    const modelViewer = document.getElementById('model-viewer');
+    const arViewer = document.getElementById('ar-viewer');
+    
+    if (arViewer) {
+        // Hide AR viewer
+        arViewer.style.display = 'none';
+    }
+    
+    if (modelViewer) {
+        // Clear model sources to free memory
+        const currentSrc = modelViewer.src;
+        modelViewer.src = '';
+        modelViewer.removeAttribute('ios-src');
+        
+        // Reset AR button
+        const arButton = document.getElementById('ar-button');
+        if (arButton) {
+            arButton.textContent = 'AR View';
+            arButton.disabled = false;
+        }
+        
+        // Attempt recovery after a delay
+        setTimeout(() => {
+            try {
+                if (currentSrc && currentSrc.startsWith('blob:')) {
+                    // Don't reload blob URLs as they might be corrupted
+                    console.log('AR session failed - please try generating the model again');
+                } else if (currentSrc) {
+                    // Reload non-blob URLs
+                    modelViewer.src = currentSrc;
+                    modelViewer.setAttribute('ios-src', currentSrc);
+                }
+            } catch (error) {
+                console.error('Failed to recover from AR session failure:', error);
+            }
+        }, 2000);
     }
 }
 

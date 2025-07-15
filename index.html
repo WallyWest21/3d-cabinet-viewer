@@ -614,18 +614,19 @@
             ios-src=""
             ar
             ar-modes="webxr scene-viewer quick-look"
-            ar-scale="fixed"
+            ar-scale="auto"
             ar-placement="floor"
             camera-controls
             touch-action="pan-y"
             auto-rotate
             auto-rotate-delay="3000"
             rotation-per-second="30deg"
-            shadow-intensity="1"
+            shadow-intensity="0.5"
             environment-image="neutral"
             exposure="1"
-            loading="lazy"
-            reveal="interaction"
+            loading="eager"
+            reveal="auto"
+            seamless-poster
             poster=""
             alt="3D Pine Wood Cabinet">
             <div slot="ar-button" id="ar-prompt">

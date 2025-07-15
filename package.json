@@ -1,0 +1,15 @@
+{
+  "name": "3d-cabinet-ar-test",
+  "version": "1.0.0",
+  "description": "AR testing server for 3D cabinet viewer",
+  "main": "https-server.js",
+  "scripts": {
+    "start": "node https-server.js",
+    "serve-https": "npx http-server . -p 8443 -S -C cert.pem -K key.pem",
+    "serve-simple": "npx http-server . -p 8080"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "express": "^4.18.2"
+  }
+}
