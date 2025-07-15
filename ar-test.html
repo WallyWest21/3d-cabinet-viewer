@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Test - 3D Cabinet Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .requirements {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .test-button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+            display: block;
+            width: 100%;
+        }
+        
+        .test-button:hover {
+            background: #45a049;
+        }
+        
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        model-viewer {
+            width: 100%;
+            height: 400px;
+            background-color: #f0f0f0;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>AR Functionality Test</h1>
+        
+        <div class="info-box">
+            <h3>About AR Support</h3>
+            <p>This page tests the AR functionality of your 3D cabinet viewer. AR (Augmented Reality) allows you to place and view the cabinet in your real-world space using your device's camera.</p>
+        </div>
+        
+        <div class="requirements">
+            <h3>Requirements for AR to Work:</h3>
+            <ul>
+                <li><strong>Device:</strong> iPhone/iPad (iOS 12+) or Android device with ARCore support</li>
+                <li><strong>Browser:</strong> Safari on iOS, Chrome on Android</li>
+                <li><strong>Security:</strong> HTTPS connection (required for camera access)</li>
+                <li><strong>Permissions:</strong> Camera access permission when prompted</li>
+            </ul>
+        </div>
+        
+        <button class="test-button" onclick="testARSupport()">Test AR Support</button>
+        <button class="test-button" onclick="loadTestModel()" disabled id="load-btn">Load Test Cabinet Model</button>
+        
+        <div id="status-messages"></div>
+        
+        <model-viewer
+            id="ar-test-viewer"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            ar-scale="fixed"
+            ar-placement="floor"
+            camera-controls
+            touch-action="pan-y"
+            shadow-intensity="1"
+            alt="Test Cabinet for AR">
+            <div slot="ar-button">
+                <button style="background: #ff6b35; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                    📱 View in Your Space
+                </button>
+            </div>
+        </model-viewer>
+        
+        <div class="info-box">
+            <h3>How to Test:</h3>
+            <ol>
+                <li>Click "Test AR Support" to check if your device supports AR</li>
+                <li>Click "Load Test Cabinet Model" to load a 3D model</li>
+                <li>Click "📱 View in Your Space" to launch AR mode</li>
+                <li>Grant camera permissions when prompted</li>
+                <li>Move your device to scan the floor/surface</li>
+                <li>Tap to place the cabinet in your space</li>
+            </ol>
+        </div>
+        
+        <div class="info-box">
+            <h3>Troubleshooting:</h3>
+            <ul>
+                <li>If AR button doesn't appear: Your device may not support AR or you need HTTPS</li>
+                <li>If camera doesn't start: Check browser permissions for camera access</li>
+                <li>If placement fails: Ensure good lighting and try scanning different surfaces</li>
+                <li>iOS users: Look for "AR" icon in Safari address bar as alternative</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script>
+        function addStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status-messages');
+            const statusElement = document.createElement('div');
+            statusElement.className = `status ${type}`;
+            statusElement.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            statusDiv.appendChild(statusElement);
+            statusDiv.scrollTop = statusDiv.scrollHeight;
+        }
+        
+        function testARSupport() {
+            addStatus('Testing AR support...', 'info');
+            
+            const modelViewer = document.getElementById('ar-test-viewer');
+            
+            // Check basic requirements
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                addStatus('❌ Camera API not available (HTTPS required)', 'error');
+                return;
+            }
+            
+            // Check if model-viewer supports AR
+            if (typeof modelViewer.canActivateAR !== 'undefined') {
+                if (modelViewer.canActivateAR) {
+                    addStatus('✅ AR is supported on this device!', 'success');
+                    document.getElementById('load-btn').disabled = false;
+                } else {
+                    addStatus('❌ AR is not supported on this device/browser', 'error');
+                }
+            } else {
+                addStatus('⏳ AR support detection not ready yet. Try loading a model first.', 'info');
+                document.getElementById('load-btn').disabled = false;
+            }
+            
+            // Check device type
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            
+            if (isIOS) {
+                addStatus('📱 iOS device detected - AR should work in Safari', 'success');
+            } else if (isAndroid) {
+                addStatus('🤖 Android device detected - AR should work in Chrome with ARCore', 'success');
+            } else {
+                addStatus('💻 Desktop detected - AR not available on desktop browsers', 'info');
+            }
+            
+            // Check HTTPS
+            if (location.protocol === 'https:') {
+                addStatus('🔒 HTTPS connection confirmed', 'success');
+            } else {
+                addStatus('⚠️ HTTP connection - AR may not work without HTTPS', 'error');
+            }
+        }
+        
+        async function loadTestModel() {
+            addStatus('Creating test cabinet model...', 'info');
+            
+            try {
+                // Create a simple GLB model using Three.js
+                const scene = new THREE.Scene();
+                
+                // Simple cabinet box
+                const geometry = new THREE.BoxGeometry(0.6, 0.8, 0.4); // 60cm x 80cm x 40cm
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: 0xD2B48C, // Light brown wood color
+                    roughness: 0.8,
+                    metalness: 0.1 
+                });
+                const cabinet = new THREE.Mesh(geometry, material);
+                cabinet.position.y = 0.4; // Lift off ground
+                scene.add(cabinet);
+                
+                // Add a simple door
+                const doorGeometry = new THREE.BoxGeometry(0.55, 0.75, 0.02);
+                const doorMaterial = new THREE.MeshStandardMaterial({ color: 0xC19A6B });
+                const door = new THREE.Mesh(doorGeometry, doorMaterial);
+                door.position.set(0, 0.4, 0.21);
+                scene.add(door);
+                
+                // Add handle
+                const handleGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.08, 8);
+                const handleMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x444444,
+                    metalness: 0.8,
+                    roughness: 0.2 
+                });
+                const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+                handle.position.set(0.2, 0.4, 0.22);
+                handle.rotation.z = Math.PI / 2;
+                scene.add(handle);
+                
+                // Export to GLB
+                const exporter = new THREE.GLTFExporter();
+                const gltf = await new Promise((resolve, reject) => {
+                    exporter.parse(scene, resolve, { binary: true }, reject);
+                });
+                
+                const blob = new Blob([gltf], { type: 'model/gltf-binary' });
+                const url = URL.createObjectURL(blob);
+                
+                const modelViewer = document.getElementById('ar-test-viewer');
+                modelViewer.src = url;
+                modelViewer.setAttribute('ios-src', url);
+                
+                addStatus('✅ Test cabinet model loaded successfully!', 'success');
+                addStatus('📱 You can now try the AR button below the model', 'info');
+                
+            } catch (error) {
+                console.error('Model creation error:', error);
+                addStatus('❌ Failed to create test model: ' + error.message, 'error');
+                
+                // Fallback: use a simple built-in model
+                addStatus('🔄 Using fallback model...', 'info');
+                const modelViewer = document.getElementById('ar-test-viewer');
+                // You can replace this with any GLB model URL
+                modelViewer.src = 'data:model/gltf-binary;base64,'; // Would need a base64 encoded simple model
+                addStatus('ℹ️ For full functionality, integrate with your main cabinet viewer', 'info');
+            }
+        }
+        
+        // Initialize model-viewer event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const modelViewer = document.getElementById('ar-test-viewer');
+            
+            modelViewer.addEventListener('ar-status', (event) => {
+                const status = event.detail.status;
+                if (status === 'session-started') {
+                    addStatus('🎉 AR session started! Look for placement indicators.', 'success');
+                } else if (status === 'not-presenting') {
+                    addStatus('📱 AR session ended', 'info');
+                } else if (status === 'failed') {
+                    addStatus('❌ AR session failed to start', 'error');
+                }
+            });
+            
+            modelViewer.addEventListener('error', (event) => {
+                addStatus('❌ Model error: ' + event.detail, 'error');
+            });
+            
+            modelViewer.addEventListener('load', () => {
+                addStatus('✅ Model loaded and ready for AR', 'success');
+            });
+        });
+    </script>
+    
+    <!-- Load Three.js for model creation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+</body>
+</html>

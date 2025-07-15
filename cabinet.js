@@ -1127,10 +1127,17 @@ async function enterARMode() {
             modelUrl = await createSimpleCabinetBlob();
         }
         
-        // Set the model source
+        // Set the model source for both regular and iOS
         if (modelUrl) {
             modelViewer.src = modelUrl;
+            modelViewer.setAttribute('ios-src', modelUrl);
             console.log('Model set in model-viewer');
+            
+            // Wait for model to load
+            await new Promise((resolve) => {
+                modelViewer.addEventListener('load', resolve, { once: true });
+                setTimeout(resolve, 3000); // Fallback timeout
+            });
         } else {
             throw new Error('Failed to create model');
         }
@@ -1142,6 +1149,14 @@ async function enterARMode() {
         }
         
         console.log('AR mode ready! Use the "View in AR" button in the viewer.');
+        
+        // Check if AR is supported and show appropriate message
+        if (modelViewer.canActivateAR) {
+            console.log('AR is supported on this device');
+        } else {
+            console.log('AR may not be supported on this device/browser');
+            // Still allow the user to try - model-viewer will handle gracefully
+        }
         
     } catch (error) {
         console.error('Failed to enter AR mode:', error);
@@ -1157,7 +1172,7 @@ async function enterARMode() {
             arButton.disabled = false;
         }
         
-        alert('Failed to load AR mode. This feature requires a compatible device and browser.');
+        alert('Failed to load AR mode. This feature requires a compatible device and browser with HTTPS.');
     }
 }
 
@@ -1233,15 +1248,59 @@ function exitARMode() {
     
     const modelViewer = document.getElementById('model-viewer');
     
-    // Clean up model URL to free memory
-    if (currentModelBlob) {
+    // Clean up model URLs to free memory
+    if (modelViewer.src && modelViewer.src.startsWith('blob:')) {
         URL.revokeObjectURL(modelViewer.src);
-        currentModelBlob = null;
     }
+    if (modelViewer.getAttribute('ios-src') && modelViewer.getAttribute('ios-src').startsWith('blob:')) {
+        URL.revokeObjectURL(modelViewer.getAttribute('ios-src'));
+    }
+    
+    // Clear model sources
+    modelViewer.src = '';
+    modelViewer.removeAttribute('ios-src');
     
     // Reset model-viewer attributes
     modelViewer.setAttribute('auto-rotate', '');
     modelViewer.setAttribute('auto-rotate-delay', '3000');
+}
+
+// Initialize model-viewer when DOM is ready
+function initializeModelViewer() {
+    const modelViewer = document.getElementById('model-viewer');
+    if (modelViewer) {
+        // Add event listeners for AR functionality
+        modelViewer.addEventListener('ar-status', (event) => {
+            console.log('AR Status:', event.detail.status);
+            if (event.detail.status === 'session-started') {
+                console.log('AR session started successfully');
+            } else if (event.detail.status === 'not-presenting') {
+                console.log('AR session ended');
+            }
+        });
+        
+        modelViewer.addEventListener('error', (event) => {
+            console.error('Model Viewer Error:', event.detail);
+        });
+        
+        modelViewer.addEventListener('load', () => {
+            console.log('Model loaded successfully');
+        });
+        
+        // Check AR support
+        modelViewer.addEventListener('ar-tracking', (event) => {
+            console.log('AR Tracking:', event.detail.status);
+        });
+        
+        console.log('Model Viewer initialized');
+    }
+}
+
+// Call when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeModelViewer);
+} else {
+    initializeModelViewer();
 }
 
 // Initialize GLTF Exporter when Three.js is ready
