@@ -1419,6 +1419,104 @@ function initializeAfterThreeJS() {
 // Start initialization
 initializeAfterThreeJS();
 
+// Simple AR activation function using native model-viewer functionality
+async function activateModelViewerAR() {
+    try {
+        console.log('🚀 Starting simple AR activation...');
+        
+        const modelViewer = document.getElementById('model-viewer');
+        
+        // First, create and load the cabinet model
+        if (!modelViewer.src) {
+            console.log('📦 Generating cabinet model for AR...');
+            await generateCabinetForAR();
+        }
+        
+        // Wait a moment for model to be ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Show the model viewer
+        modelViewer.style.display = 'block';
+        
+        // Check if AR is available
+        if (modelViewer.canActivateAR) {
+            console.log('✅ AR available - activating...');
+            await modelViewer.activateAR();
+        } else {
+            console.log('❌ AR not available, trying force activation...');
+            alert('AR not available on this device/browser. Please use:\n- Chrome on Android with ARCore\n- Safari on iOS 12+\n- Ensure HTTPS connection');
+            modelViewer.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('AR activation failed:', error);
+        alert('AR failed to start: ' + error.message);
+        const modelViewer = document.getElementById('model-viewer');
+        modelViewer.style.display = 'none';
+    }
+}
+
+async function generateCabinetForAR() {
+    console.log('🔧 Creating AR-optimized cabinet model...');
+    
+    if (!gltfExporter) {
+        gltfExporter = new THREE.GLTFExporter();
+    }
+    
+    // Create a clean scene for AR export
+    const arScene = new THREE.Scene();
+    
+    // Create cabinet with current dimensions
+    const cabinetGroup = new THREE.Group();
+    
+    // Convert inches to meters for AR (1 inch = 0.0254 meters)
+    const width = cabinetDimensions.width * 0.0254;
+    const height = cabinetDimensions.height * 0.0254;
+    const depth = cabinetDimensions.depth * 0.0254;
+    const thickness = cabinetDimensions.panelThickness * 0.0254;
+    
+    // Main cabinet body
+    const cabinetGeometry = new THREE.BoxGeometry(width, height, depth);
+    const cabinetMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xD2B48C, // Wood color
+        roughness: 0.7,
+        metalness: 0.1
+    });
+    
+    const cabinetMesh = new THREE.Mesh(cabinetGeometry, cabinetMaterial);
+    cabinetMesh.position.y = height / 2; // Place on floor
+    cabinetGroup.add(cabinetMesh);
+    
+    // Add basic lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    arScene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    arScene.add(directionalLight);
+    
+    arScene.add(cabinetGroup);
+    
+    // Export to GLB
+    return new Promise((resolve, reject) => {
+        gltfExporter.parse(arScene, (gltf) => {
+            const blob = new Blob([gltf], { type: 'model/gltf-binary' });
+            const url = URL.createObjectURL(blob);
+            
+            const modelViewer = document.getElementById('model-viewer');
+            modelViewer.src = url;
+            modelViewer.setAttribute('ios-src', url);
+            
+            console.log('✅ AR model ready!');
+            resolve(url);
+        }, {
+            binary: true,
+            embedImages: true,
+            truncateDrawRange: true
+        }, reject);
+    });
+}
+
 // Make functions globally available for HTML onclick handlers
 window.flipCard = flipCard;
 window.toggleDoor = toggleDoor;
@@ -1430,3 +1528,4 @@ window.setLeftView = setLeftView;
 window.setRightView = setRightView;
 window.enterARMode = enterARMode;
 window.exitARMode = exitARMode;
+window.activateModelViewerAR = activateModelViewerAR;

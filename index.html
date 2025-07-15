@@ -514,7 +514,7 @@
                         <button class="control-button" onclick="setFrontView()">Front</button>
                         <button class="control-button" onclick="setLeftView()">Left</button>
                         <button class="control-button" onclick="setRightView()">Right</button>
-                        <button class="control-button" onclick="enterARMode()" id="ar-button">AR View</button>
+                        <button class="control-button" onclick="activateModelViewerAR()" id="ar-button">AR View</button>
                     </div>
                 </div>
             </div>
@@ -605,35 +605,27 @@
         </div>
     </div>
 
-    <!-- AR Viewer -->
-    <div id="ar-viewer">
-        <button class="ar-exit-button" onclick="exitARMode()">Exit AR</button>
-        <model-viewer
-            id="model-viewer"
-            src=""
-            ios-src=""
-            ar
-            ar-modes="webxr scene-viewer quick-look"
-            ar-scale="auto"
-            ar-placement="floor"
-            camera-controls
-            touch-action="pan-y"
-            auto-rotate
-            auto-rotate-delay="3000"
-            rotation-per-second="30deg"
-            shadow-intensity="0.5"
-            environment-image="neutral"
-            exposure="1"
-            loading="eager"
-            reveal="auto"
-            seamless-poster
-            poster=""
-            alt="3D Pine Wood Cabinet">
-            <div slot="ar-button" id="ar-prompt">
-                <button class="ar-button-custom">View in AR</button>
-            </div>
-        </model-viewer>
-    </div>
+    <!-- AR Viewer - Simplified for direct AR activation -->
+    <model-viewer
+        id="model-viewer"
+        src=""
+        ios-src=""
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        ar-scale="auto"
+        ar-placement="floor"
+        camera-controls
+        touch-action="pan-y"
+        shadow-intensity="0.5"
+        environment-image="neutral"
+        exposure="1"
+        loading="eager"
+        reveal="auto"
+        seamless-poster
+        poster=""
+        alt="3D Pine Wood Cabinet"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1000;">
+    </model-viewer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
