@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Cabinet Viewer with Debug Console</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .model-viewer-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 2px dashed #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            background-color: #f8f9fa;
+        }
+
+        .loading-placeholder {
+            text-align: center;
+            color: #6c757d;
+            font-size: 1.2em;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        }
+
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        }
+
+        .debug-section {
+            margin-top: 30px;
+            border-top: 2px solid #e9ecef;
+            padding-top: 30px;
+        }
+
+        .debug-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #ccc;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            left: 33px;
+        }
+
+        .debug-console {
+            display: none;
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 20px;
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            border: 2px solid #333;
+            white-space: pre-wrap;
+        }
+
+        .debug-console.visible {
+            display: block;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ok { background: #27ae60; }
+        .status-warning { background: #f39c12; }
+        .status-error { background: #e74c3c; }
+        .status-info { background: #3498db; }
+
+        .cabinet-params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .param-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .param-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+
+        .param-group input {
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .param-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .ar-requirements {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .ar-requirements h3 {
+            margin: 0 0 10px 0;
+        }
+
+        .ar-requirements ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .feature-detection {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 12px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🪑 AR Cabinet Viewer</h1>
+            <p>View your custom cabinet in augmented reality with detailed debugging</p>
+        </div>
+        
+        <div class="content">
+            <!-- AR Requirements Notice -->
+            <div class="ar-requirements">
+                <h3>⚠️ AR Requirements</h3>
+                <ul>
+                    <li>HTTPS connection required (use start-ar-server.bat)</li>
+                    <li>Mobile device with ARCore (Android) or ARKit (iOS)</li>
+                    <li>Modern browser with WebXR support</li>
+                    <li>Camera permissions must be granted</li>
+                </ul>
+            </div>
+
+            <!-- Feature Detection -->
+            <div class="feature-detection">
+                <h3>📱 Device Capabilities</h3>
+                <div id="feature-status">Checking device capabilities...</div>
+            </div>
+
+            <!-- Cabinet Parameters -->
+            <div class="control-group">
+                <h3>🔧 Cabinet Dimensions</h3>
+                <div class="cabinet-params">
+                    <div class="param-group">
+                        <label for="width">Width (inches)</label>
+                        <input type="number" id="width" value="20" min="12" max="48">
+                    </div>
+                    <div class="param-group">
+                        <label for="height">Height (inches)</label>
+                        <input type="number" id="height" value="30" min="12" max="96">
+                    </div>
+                    <div class="param-group">
+                        <label for="depth">Depth (inches)</label>
+                        <input type="number" id="depth" value="20" min="12" max="36">
+                    </div>
+                    <div class="param-group">
+                        <label for="thickness">Panel Thickness</label>
+                        <input type="number" id="thickness" value="0.75" min="0.5" max="2" step="0.25">
+                    </div>
+                </div>
+                <button class="btn" onclick="generateCabinetModel()">🔄 Generate New Model</button>
+            </div>
+
+            <!-- Model Viewer -->
+            <div class="model-viewer-container">
+                <div class="loading-placeholder" id="loading-placeholder">
+                    <div>📦 Generating your cabinet model...</div>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #999;">This may take a few moments</div>
+                </div>
+                <model-viewer 
+                    id="cabinet-viewer"
+                    style="display: none;"
+                    alt="Custom Cabinet 3D Model"
+                    camera-controls 
+                    touch-action="pan-y"
+                    auto-rotate
+                    shadow-intensity="1"
+                    exposure="1"
+                    shadow-softness="0.75"
+                    environment-image="neutral"
+                    ar
+                    ar-modes="webxr scene-viewer quick-look"
+                    ar-scale="fixed"
+                    ar-placement="floor"
+                    quick-look-browsers="safari chrome"
+                    ios-src=""
+                >
+                    <button 
+                        class="btn" 
+                        slot="ar-button" 
+                        style="position: absolute; bottom: 16px; right: 16px; background: rgba(255,255,255,0.9); color: #333;"
+                    >
+                        📱 View in AR
+                    </button>
+                </model-viewer>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <div class="control-group">
+                    <h3>🎮 Model Controls</h3>
+                    <button class="btn" onclick="toggleAnimation()">🔄 Toggle Rotation</button>
+                    <button class="btn" onclick="resetCamera()">📷 Reset Camera</button>
+                    <button class="btn" onclick="toggleEnvironment()">🌍 Change Environment</button>
+                </div>
+
+                <div class="control-group">
+                    <h3>📱 AR Testing</h3>
+                    <button class="btn" onclick="testARSupport()">🔍 Test AR Support</button>
+                    <button class="btn" onclick="manualARLaunch()" id="manual-ar-btn" disabled>🚀 Force AR Launch</button>
+                    <button class="btn danger" onclick="downloadModel()">💾 Download GLB</button>
+                </div>
+            </div>
+
+            <!-- Debug Section -->
+            <div class="debug-section">
+                <div class="debug-toggle">
+                    <h3>🐛 Debug Console</h3>
+                    <div class="toggle-switch" id="debug-toggle" onclick="toggleDebugConsole()"></div>
+                </div>
+                <div class="debug-console" id="debug-console">
+                    <div id="debug-output">Debug console initialized...\n</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Model Viewer -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+    
+    <!-- Three.js for cabinet generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+
+    <script>
+        let debugEnabled = false;
+        let modelViewer;
+        let currentEnvironment = 0;
+        const environments = ['neutral', 'warehouse', 'studio', 'city', 'forest'];
+        
+        // Debug logging function
+        function debugLog(message, type = 'info') {
+            if (!debugEnabled) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = `[${timestamp}] `;
+            const statusIcon = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+            
+            const debugOutput = document.getElementById('debug-output');
+            debugOutput.textContent += `${prefix}${statusIcon} ${message}\n`;
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+            
+            // Also log to browser console
+            console[type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'log'](message);
+        }
+
+        // Feature Detection
+        function detectFeatures() {
+            debugLog('Starting feature detection...', 'info');
+            
+            const features = {
+                webxr: 'xr' in navigator,
+                webgl: !!window.WebGLRenderingContext,
+                https: location.protocol === 'https:',
+                mobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+                camera: 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices,
+                devicemotion: 'DeviceMotionEvent' in window,
+                deviceorientation: 'DeviceOrientationEvent' in window
+            };
+            
+            debugLog(`Feature detection results: ${JSON.stringify(features)}`, 'info');
+            
+            let statusHtml = '';
+            Object.entries(features).forEach(([feature, supported]) => {
+                const status = supported ? 'status-ok' : 'status-error';
+                const icon = supported ? '✅' : '❌';
+                statusHtml += `<div><span class="status-indicator ${status}"></span>${feature.toUpperCase()}: ${icon}</div>`;
+            });
+            
+            document.getElementById('feature-status').innerHTML = statusHtml;
+            
+            // Check for specific AR support
+            if ('xr' in navigator) {
+                navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+                    debugLog(`WebXR immersive-ar support: ${supported}`, supported ? 'success' : 'warning');
+                }).catch(err => {
+                    debugLog(`Error checking WebXR support: ${err.message}`, 'error');
+                });
+            }
+        }
+
+        // Generate Cabinet Model
+        function generateCabinetModel() {
+            debugLog('Starting cabinet model generation...', 'info');
+            
+            const width = parseFloat(document.getElementById('width').value) || 20;
+            const height = parseFloat(document.getElementById('height').value) || 30;
+            const depth = parseFloat(document.getElementById('depth').value) || 20;
+            const thickness = parseFloat(document.getElementById('thickness').value) || 0.75;
+            
+            debugLog(`Cabinet dimensions: ${width}"W x ${height}"H x ${depth}"D, thickness: ${thickness}"`, 'info');
+            
+            try {
+                const scene = new THREE.Scene();
+                
+                // Convert inches to meters for proper AR scaling
+                const scale = 0.0254; // inches to meters
+                const w = width * scale;
+                const h = height * scale;
+                const d = depth * scale;
+                const t = thickness * scale;
+                
+                debugLog(`Converted to meters: ${w.toFixed(3)}m x ${h.toFixed(3)}m x ${d.toFixed(3)}m`, 'info');
+                
+                const group = new THREE.Group();
+                
+                // Materials
+                const pineMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xDEB887,
+                    roughness: 0.8,
+                    metalness: 0.0,
+                    name: 'PineMaterial'
+                });
+                
+                const handleMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x444444,
+                    roughness: 0.2,
+                    metalness: 0.8,
+                    name: 'HandleMaterial'
+                });
+                
+                debugLog('Materials created successfully', 'success');
+                
+                // Cabinet parts
+                const parts = [
+                    { name: 'back', geometry: new THREE.BoxGeometry(w, h, t), position: [0, h/2, -d/2 + t/2] },
+                    { name: 'left', geometry: new THREE.BoxGeometry(t, h, d), position: [-w/2 + t/2, h/2, 0] },
+                    { name: 'right', geometry: new THREE.BoxGeometry(t, h, d), position: [w/2 - t/2, h/2, 0] },
+                    { name: 'top', geometry: new THREE.BoxGeometry(w, t, d), position: [0, h - t/2, 0] },
+                    { name: 'bottom', geometry: new THREE.BoxGeometry(w, t, d), position: [0, t/2, 0] },
+                    { name: 'door', geometry: new THREE.BoxGeometry(w - 2*t - 0.002, h - 2*t - 0.002, t), position: [0, h/2, d/2 - t/2] }
+                ];
+                
+                parts.forEach(part => {
+                    const mesh = new THREE.Mesh(part.geometry, pineMaterial);
+                    mesh.position.set(...part.position);
+                    mesh.name = part.name;
+                    group.add(mesh);
+                    debugLog(`Added ${part.name} panel`, 'info');
+                });
+                
+                // Door handle
+                const handleGeometry = new THREE.CylinderGeometry(0.005, 0.005, 0.1);
+                const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+                handle.position.set(w/4, h/2, d/2);
+                handle.rotation.z = Math.PI / 2;
+                handle.name = 'handle';
+                group.add(handle);
+                
+                debugLog('Door handle added', 'success');
+                
+                // Add lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                ambientLight.name = 'ambientLight';
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 10, 5);
+                directionalLight.name = 'directionalLight';
+                scene.add(directionalLight);
+                
+                scene.add(group);
+                debugLog('Lighting and scene setup complete', 'success');
+                
+                // Export to GLB
+                const exporter = new THREE.GLTFExporter();
+                exporter.parse(scene, function(gltf) {
+                    debugLog('GLB export started...', 'info');
+                    
+                    const blob = new Blob([gltf], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    debugLog(`GLB blob created, size: ${(blob.size / 1024).toFixed(2)} KB`, 'success');
+                    
+                    // Update model viewer
+                    modelViewer = document.getElementById('cabinet-viewer');
+                    modelViewer.src = url;
+                    
+                    // Store for download
+                    window.currentModelBlob = blob;
+                    
+                    debugLog('Model loaded into viewer', 'success');
+                    
+                }, function(error) {
+                    debugLog(`GLB export error: ${error.message}`, 'error');
+                }, {
+                    binary: true,
+                    animations: [],
+                    includeCustomExtensions: true
+                });
+                
+            } catch (error) {
+                debugLog(`Cabinet generation error: ${error.message}`, 'error');
+                debugLog(`Stack trace: ${error.stack}`, 'error');
+            }
+        }
+
+        // Model Viewer Event Handlers
+        function setupModelViewerEvents() {
+            modelViewer = document.getElementById('cabinet-viewer');
+            
+            modelViewer.addEventListener('load', () => {
+                debugLog('Model loaded successfully', 'success');
+                document.getElementById('loading-placeholder').style.display = 'none';
+                modelViewer.style.display = 'block';
+                document.getElementById('manual-ar-btn').disabled = false;
+            });
+            
+            modelViewer.addEventListener('error', (event) => {
+                debugLog(`Model loading error: ${event.detail.message || 'Unknown error'}`, 'error');
+                debugLog(`Error type: ${event.detail.type || 'Unknown'}`, 'error');
+            });
+            
+            modelViewer.addEventListener('ar-status', (event) => {
+                debugLog(`AR Status: ${event.detail.status}`, 'info');
+            });
+            
+            modelViewer.addEventListener('camera-change', () => {
+                debugLog('Camera position changed', 'info');
+            });
+            
+            // WebXR specific events
+            modelViewer.addEventListener('ar-tracking', (event) => {
+                debugLog(`AR Tracking: ${event.detail.status}`, 'info');
+            });
+            
+            modelViewer.addEventListener('ar-hit-test', (event) => {
+                debugLog('AR hit test performed', 'info');
+            });
+        }
+
+        // AR Support Testing
+        function testARSupport() {
+            debugLog('=== AR Support Test Starting ===', 'info');
+            
+            // Check basic requirements
+            const isHTTPS = location.protocol === 'https:';
+            const hasWebXR = 'xr' in navigator;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            debugLog(`HTTPS: ${isHTTPS}`, isHTTPS ? 'success' : 'error');
+            debugLog(`WebXR: ${hasWebXR}`, hasWebXR ? 'success' : 'error');
+            debugLog(`Mobile: ${isMobile}`, isMobile ? 'success' : 'warning');
+            debugLog(`User Agent: ${navigator.userAgent}`, 'info');
+            
+            if (!isHTTPS) {
+                debugLog('❌ HTTPS required for AR. Use start-ar-server.bat', 'error');
+                return;
+            }
+            
+            if (hasWebXR) {
+                // Test WebXR AR support
+                navigator.xr.isSessionSupported('immersive-ar').then(supported => {
+                    debugLog(`WebXR immersive-ar: ${supported}`, supported ? 'success' : 'warning');
+                    
+                    if (supported) {
+                        debugLog('✅ Device supports WebXR AR!', 'success');
+                        testARSession();
+                    } else {
+                        debugLog('⚠️ WebXR AR not supported, checking fallbacks...', 'warning');
+                        testSceneViewer();
+                    }
+                }).catch(err => {
+                    debugLog(`WebXR test error: ${err.message}`, 'error');
+                    testSceneViewer();
+                });
+            } else {
+                debugLog('No WebXR support, checking Scene Viewer...', 'warning');
+                testSceneViewer();
+            }
+        }
+
+        function testARSession() {
+            debugLog('Attempting to request AR session...', 'info');
+            
+            navigator.xr.requestSession('immersive-ar', {
+                requiredFeatures: ['local', 'hit-test'],
+                optionalFeatures: ['light-estimation', 'anchors', 'plane-detection']
+            }).then(session => {
+                debugLog('✅ AR session created successfully!', 'success');
+                session.end();
+                debugLog('AR session ended (test complete)', 'info');
+            }).catch(err => {
+                debugLog(`AR session error: ${err.message}`, 'error');
+                if (err.message.includes('NotAllowedError')) {
+                    debugLog('Camera permission denied. Please allow camera access.', 'error');
+                } else if (err.message.includes('NotSupportedError')) {
+                    debugLog('AR not supported on this device/browser.', 'error');
+                }
+            });
+        }
+
+        function testSceneViewer() {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isChrome = /Chrome/i.test(navigator.userAgent);
+            
+            debugLog(`Android: ${isAndroid}, Chrome: ${isChrome}`, 'info');
+            
+            if (isAndroid && isChrome) {
+                debugLog('✅ Android Chrome detected - Scene Viewer should work', 'success');
+            } else {
+                debugLog('⚠️ Scene Viewer may not be available', 'warning');
+            }
+        }
+
+        // Control Functions
+        function toggleAnimation() {
+            if (modelViewer.autoRotate) {
+                modelViewer.autoRotate = false;
+                debugLog('Auto-rotation disabled', 'info');
+            } else {
+                modelViewer.autoRotate = true;
+                debugLog('Auto-rotation enabled', 'info');
+            }
+        }
+
+        function resetCamera() {
+            modelViewer.resetTurntableRotation();
+            debugLog('Camera reset to default position', 'info');
+        }
+
+        function toggleEnvironment() {
+            currentEnvironment = (currentEnvironment + 1) % environments.length;
+            modelViewer.environmentImage = environments[currentEnvironment];
+            debugLog(`Environment changed to: ${environments[currentEnvironment]}`, 'info');
+        }
+
+        function manualARLaunch() {
+            debugLog('=== Manual AR Launch Initiated ===', 'info');
+            
+            try {
+                if (modelViewer && modelViewer.canActivateAR) {
+                    debugLog('Activating AR through model-viewer...', 'info');
+                    modelViewer.activateAR();
+                } else {
+                    debugLog('❌ AR not available or model not ready', 'error');
+                    debugLog(`Model ready: ${!!modelViewer}`, 'info');
+                    debugLog(`Can activate AR: ${modelViewer ? modelViewer.canActivateAR : 'N/A'}`, 'info');
+                }
+            } catch (error) {
+                debugLog(`Manual AR launch error: ${error.message}`, 'error');
+                debugLog(`Stack trace: ${error.stack}`, 'error');
+            }
+        }
+
+        function downloadModel() {
+            if (window.currentModelBlob) {
+                const url = URL.createObjectURL(window.currentModelBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'custom-cabinet.glb';
+                a.click();
+                URL.revokeObjectURL(url);
+                debugLog('Model download initiated', 'success');
+            } else {
+                debugLog('❌ No model available for download', 'error');
+            }
+        }
+
+        // Debug Console Toggle
+        function toggleDebugConsole() {
+            debugEnabled = !debugEnabled;
+            const toggle = document.getElementById('debug-toggle');
+            const console = document.getElementById('debug-console');
+            
+            if (debugEnabled) {
+                toggle.classList.add('active');
+                console.classList.add('visible');
+                debugLog('Debug console enabled', 'success');
+            } else {
+                toggle.classList.remove('active');
+                console.classList.remove('visible');
+            }
+        }
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('Page loaded, initializing...', 'info');
+            detectFeatures();
+            setupModelViewerEvents();
+            generateCabinetModel();
+            
+            // Add window error handler
+            window.addEventListener('error', function(e) {
+                debugLog(`Global error: ${e.message} at ${e.filename}:${e.lineno}`, 'error');
+            });
+            
+            // Add unhandled promise rejection handler
+            window.addEventListener('unhandledrejection', function(e) {
+                debugLog(`Unhandled promise rejection: ${e.reason}`, 'error');
+            });
+            
+            debugLog('✅ Initialization complete', 'success');
+        });
+
+        // Add periodic AR availability check
+        setInterval(() => {
+            if (modelViewer && debugEnabled) {
+                debugLog(`AR available: ${modelViewer.canActivateAR}`, 'info');
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
