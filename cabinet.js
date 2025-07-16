@@ -879,8 +879,16 @@ function updateDimensions() {
     // Clear cached AR model so it will be regenerated with new dimensions
     if (currentModelBlob) {
         const modelViewer = document.getElementById('model-viewer');
-        URL.revokeObjectURL(modelViewer.src);
+        if (modelViewer.src && modelViewer.src.startsWith('blob:')) {
+            URL.revokeObjectURL(modelViewer.src);
+        }
+        if (modelViewer.getAttribute('ios-src') && modelViewer.getAttribute('ios-src').startsWith('blob:')) {
+            URL.revokeObjectURL(modelViewer.getAttribute('ios-src'));
+        }
+        modelViewer.src = '';
+        modelViewer.removeAttribute('ios-src');
         currentModelBlob = null;
+        console.log('🗑️ Cleared cached AR model - will regenerate with new dimensions');
     }
 }
 
@@ -1210,67 +1218,173 @@ async function enterARMode() {
 async function createSimpleCabinetBlob() {
     return new Promise((resolve) => {
         try {
-            // Create a simple cabinet using current dimensions
-            const scene = new THREE.Scene();
-            const group = new THREE.Group();
+            // Create a detailed cabinet using current dimensions and materials
+            const arScene = new THREE.Scene();
+            const cabinetGroup = new THREE.Group();
             
-            // Convert to meters for AR
+            // Convert inches to meters for AR (1 inch = 0.0254 meters)
             const width = cabinetDimensions.width * 0.0254;
             const height = cabinetDimensions.height * 0.0254;
             const depth = cabinetDimensions.depth * 0.0254;
             const thickness = cabinetDimensions.panelThickness * 0.0254;
             
-            // Simple cabinet body as one piece
-            const cabinetGeo = new THREE.BoxGeometry(width, height, depth);
-            const cabinetMaterial = new THREE.MeshStandardMaterial({ 
-                color: getMaterialColor(cabinetDimensions.material),
-                roughness: 0.8,
-                metalness: 0.0
-            });
-            
-            const cabinetMesh = new THREE.Mesh(cabinetGeo, cabinetMaterial);
-            cabinetMesh.position.y = height / 2; // Position on ground
-            group.add(cabinetMesh);
-            
-            // Add a simple door outline
-            const doorGeo = new THREE.BoxGeometry(width - thickness * 2, height - thickness * 2, thickness);
-            const doorMesh = new THREE.Mesh(doorGeo, cabinetMaterial);
-            doorMesh.position.set(0, height / 2, depth / 2 + thickness / 2);
-            group.add(doorMesh);
-            
-            // Add handle
-            const handleGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.1, 8);
-            const handleMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x444444,
+            // Create the same materials as the 3D model but for AR
+            const arPineMaterial = createARWoodMaterial();
+            const arHandleMaterial = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(0.3, 0.3, 0.3),
                 roughness: 0.2,
-                metalness: 0.8
+                metalness: 1.0
             });
-            const handleMesh = new THREE.Mesh(handleGeo, handleMaterial);
-            handleMesh.position.set(width/2 - 0.05, height/2, depth/2 + 0.02);
-            handleMesh.rotation.z = Math.PI / 2;
-            group.add(handleMesh);
             
-            scene.add(group);
+            // Create detailed cabinet structure (same as 3D model)
+            createARCabinetBox(cabinetGroup, width, height, depth, thickness, arPineMaterial);
+            createARDoor(cabinetGroup, width, height, depth, thickness, arPineMaterial);
+            createARDoorHandle(cabinetGroup, width, height, depth, thickness, arHandleMaterial);
+            
+            // Position cabinet at same relative height as 3D model
+            // In 3D model, cabinet sits on floor with ceiling height offset
+            const ceilingHeight = cabinetDimensions.ceilingHeight * 12 * 0.0254; // Convert feet to meters
+            cabinetGroup.position.y = 0; // Place on AR floor plane
+            
+            arScene.add(cabinetGroup);
             
             // Export to GLB
             if (gltfExporter) {
-                gltfExporter.parse(scene, (result) => {
+                gltfExporter.parse(arScene, (result) => {
                     const blob = new Blob([result], { type: 'model/gltf-binary' });
                     const url = URL.createObjectURL(blob);
                     resolve(url);
                 }, { 
                     binary: true,
                     embedImages: true,
-                    maxTextureSize: 512
+                    maxTextureSize: 1024
                 });
             } else {
                 resolve(null);
             }
         } catch (error) {
-            console.error('Error creating simple cabinet:', error);
+            console.error('Error creating cabinet for AR:', error);
             resolve(null);
         }
     });
+}
+
+// Create wood material with texture for AR
+function createARWoodMaterial() {
+    const material = new THREE.MeshStandardMaterial({
+        color: getMaterialColor(cabinetDimensions.material),
+        roughness: 0.8,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+    });
+
+    // Create wood grain texture (same as 3D model)
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const context = canvas.getContext('2d');
+    
+    const imageData = context.createImageData(512, 512);
+    const materialColor = getMaterialColor(cabinetDimensions.material);
+    
+    for (let i = 0; i < imageData.data.length; i += 4) {
+        const x = (i / 4) % 512;
+        const y = Math.floor((i / 4) / 512);
+        
+        // Create wood grain pattern
+        const noise = Math.sin(x * 0.01) * 0.1 + Math.sin(y * 0.02) * 0.05;
+        const grain = Math.sin(y * 0.1 + noise * 10) * 0.2;
+        
+        const r = Math.min(255, Math.max(0, (materialColor.r * 255) + grain * 50));
+        const g = Math.min(255, Math.max(0, (materialColor.g * 255) + grain * 40));
+        const b = Math.min(255, Math.max(0, (materialColor.b * 255) + grain * 30));
+        
+        imageData.data[i] = r;     // Red
+        imageData.data[i + 1] = g; // Green
+        imageData.data[i + 2] = b; // Blue
+        imageData.data[i + 3] = 255; // Alpha
+    }
+    
+    context.putImageData(imageData, 0, 0);
+    
+    const woodTexture = new THREE.CanvasTexture(canvas);
+    woodTexture.wrapS = THREE.RepeatWrapping;
+    woodTexture.wrapT = THREE.RepeatWrapping;
+    woodTexture.repeat.set(2, 2);
+    
+    material.map = woodTexture;
+    return material;
+}
+
+// Create detailed cabinet box structure for AR
+function createARCabinetBox(parent, width, height, depth, thickness, material) {
+    // Back panel
+    const backGeometry = new THREE.BoxGeometry(width, height, thickness);
+    const back = new THREE.Mesh(backGeometry, material);
+    back.position.set(0, height / 2, -depth / 2 + thickness / 2);
+    parent.add(back);
+
+    // Left side panel
+    const leftGeometry = new THREE.BoxGeometry(thickness, height, depth);
+    const left = new THREE.Mesh(leftGeometry, material);
+    left.position.set(-width / 2 + thickness / 2, height / 2, 0);
+    parent.add(left);
+
+    // Right side panel
+    const rightGeometry = new THREE.BoxGeometry(thickness, height, depth);
+    const right = new THREE.Mesh(rightGeometry, material);
+    right.position.set(width / 2 - thickness / 2, height / 2, 0);
+    parent.add(right);
+
+    // Top panel
+    const topGeometry = new THREE.BoxGeometry(width, thickness, depth);
+    const top = new THREE.Mesh(topGeometry, material);
+    top.position.set(0, height - thickness / 2, 0);
+    parent.add(top);
+
+    // Bottom panel
+    const bottomGeometry = new THREE.BoxGeometry(width, thickness, depth);
+    const bottom = new THREE.Mesh(bottomGeometry, material);
+    bottom.position.set(0, thickness / 2, 0);
+    parent.add(bottom);
+}
+
+// Create door for AR
+function createARDoor(parent, width, height, depth, thickness, material) {
+    const doorWidth = width - thickness * 2 - 0.001;
+    const doorHeight = height - thickness * 2 - 0.001;
+    
+    const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, thickness);
+    const door = new THREE.Mesh(doorGeometry, material);
+    
+    door.position.set(0, height / 2, depth / 2 - thickness / 2);
+    parent.add(door);
+}
+
+// Create door handle for AR
+function createARDoorHandle(parent, width, height, depth, thickness, handleMaterial) {
+    const handleGeometry = new THREE.CylinderGeometry(0.006, 0.006, 0.1, 16);
+    const doorHandle = new THREE.Mesh(handleGeometry, handleMaterial);
+    
+    doorHandle.position.set(
+        width / 2 - thickness - 0.05,
+        height / 2,
+        depth / 2 + 0.01
+    );
+    doorHandle.rotation.z = Math.PI / 2;
+    parent.add(doorHandle);
+    
+    // Handle caps
+    const capGeometry = new THREE.SphereGeometry(0.008, 16, 12);
+    const leftCap = new THREE.Mesh(capGeometry, handleMaterial);
+    leftCap.position.copy(doorHandle.position);
+    leftCap.position.x -= 0.05;
+    parent.add(leftCap);
+    
+    const rightCap = new THREE.Mesh(capGeometry, handleMaterial);
+    rightCap.position.copy(doorHandle.position);
+    rightCap.position.x += 0.05;
+    parent.add(rightCap);
 }
 
 function exitARMode() {
@@ -1423,15 +1537,13 @@ initializeAfterThreeJS();
 // Simple AR activation function using native model-viewer functionality
 async function activateModelViewerAR() {
     try {
-        console.log('🚀 Starting simple AR activation...');
+        console.log('🚀 Starting detailed AR activation...');
         
         const modelViewer = document.getElementById('model-viewer');
         
-        // First, create and load the cabinet model
-        if (!modelViewer.src) {
-            console.log('📦 Generating cabinet model for AR...');
-            await generateCabinetForAR();
-        }
+        // Always regenerate the model to ensure current dimensions and materials
+        console.log('📦 Generating detailed cabinet model for AR...');
+        await generateCabinetForAR();
         
         // Wait a moment for model to be ready
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -1441,7 +1553,7 @@ async function activateModelViewerAR() {
         
         // Check if AR is available
         if (modelViewer.canActivateAR) {
-            console.log('✅ AR available - activating...');
+            console.log('✅ AR available - activating with detailed model...');
             await modelViewer.activateAR();
         } else {
             console.log('❌ AR not available, trying force activation...');
@@ -1458,7 +1570,7 @@ async function activateModelViewerAR() {
 }
 
 async function generateCabinetForAR() {
-    console.log('🔧 Creating AR-optimized cabinet model...');
+    console.log('🔧 Creating detailed AR cabinet model with proper dimensions and textures...');
     
     if (!gltfExporter) {
         gltfExporter = new THREE.GLTFExporter();
@@ -1467,7 +1579,7 @@ async function generateCabinetForAR() {
     // Create a clean scene for AR export
     const arScene = new THREE.Scene();
     
-    // Create cabinet with current dimensions
+    // Create cabinet with current dimensions and detailed structure
     const cabinetGroup = new THREE.Group();
     
     // Convert inches to meters for AR (1 inch = 0.0254 meters)
@@ -1476,29 +1588,26 @@ async function generateCabinetForAR() {
     const depth = cabinetDimensions.depth * 0.0254;
     const thickness = cabinetDimensions.panelThickness * 0.0254;
     
-    // Main cabinet body
-    const cabinetGeometry = new THREE.BoxGeometry(width, height, depth);
-    const cabinetMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0xD2B48C, // Wood color
-        roughness: 0.7,
-        metalness: 0.1
+    // Create the same materials as the 3D model
+    const arPineMaterial = createARWoodMaterial();
+    const arHandleMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(0.3, 0.3, 0.3),
+        roughness: 0.2,
+        metalness: 1.0
     });
     
-    const cabinetMesh = new THREE.Mesh(cabinetGeometry, cabinetMaterial);
-    cabinetMesh.position.y = height / 2; // Place on floor
-    cabinetGroup.add(cabinetMesh);
+    // Create detailed cabinet structure (same as 3D model)
+    createARCabinetBox(cabinetGroup, width, height, depth, thickness, arPineMaterial);
+    createARDoor(cabinetGroup, width, height, depth, thickness, arPineMaterial);
+    createARDoorHandle(cabinetGroup, width, height, depth, thickness, arHandleMaterial);
     
-    // Add basic lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    arScene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(1, 1, 1);
-    arScene.add(directionalLight);
+    // Position cabinet at ground level for AR
+    // The AR system will handle floor detection and placement
+    cabinetGroup.position.y = 0;
     
     arScene.add(cabinetGroup);
     
-    // Export to GLB
+    // Export to GLB with detailed structure
     return new Promise((resolve, reject) => {
         gltfExporter.parse(arScene, (gltf) => {
             const blob = new Blob([gltf], { type: 'model/gltf-binary' });
@@ -1508,11 +1617,20 @@ async function generateCabinetForAR() {
             modelViewer.src = url;
             modelViewer.setAttribute('ios-src', url);
             
-            console.log('✅ AR model ready!');
+            // Store current model blob for cleanup
+            if (currentModelBlob) {
+                URL.revokeObjectURL(currentModelBlob);
+            }
+            currentModelBlob = url;
+            
+            console.log('✅ Detailed AR model ready with proper dimensions and textures!');
+            console.log(`Cabinet size in AR: ${cabinetDimensions.width}"W x ${cabinetDimensions.height}"H x ${cabinetDimensions.depth}"D`);
+            console.log(`Material: ${cabinetDimensions.material}`);
             resolve(url);
         }, {
             binary: true,
             embedImages: true,
+            maxTextureSize: 1024,
             truncateDrawRange: true
         }, reject);
     });
