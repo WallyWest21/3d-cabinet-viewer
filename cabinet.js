@@ -1241,10 +1241,19 @@ async function createSimpleCabinetBlob() {
             createARDoor(cabinetGroup, width, height, depth, thickness, arPineMaterial);
             createARDoorHandle(cabinetGroup, width, height, depth, thickness, arHandleMaterial);
             
-            // Position cabinet at same relative height as 3D model
-            // In 3D model, cabinet sits on floor with ceiling height offset
-            const ceilingHeight = cabinetDimensions.ceilingHeight * 12 * 0.0254; // Convert feet to meters
-            cabinetGroup.position.y = 0; // Place on AR floor plane
+            // Position cabinet at same elevation as 3D model
+            // In 3D model: cabinet is positioned at (scaledCeiling - scaledHeight)
+            // Convert this to AR scale (meters)
+            const ceilingHeight = cabinetDimensions.ceilingHeight * 12 * 0.0254; // feet to meters
+            const cabinetHeight = height; // already in meters
+            
+            // Position cabinet to match 3D model: hanging from ceiling height
+            // For AR, we simulate the same positioning relative to a reference height
+            // Place cabinet bottom at the height it would be in the 3D scene
+            const floorToBottomDistance = ceilingHeight - cabinetHeight;
+            cabinetGroup.position.y = floorToBottomDistance;
+            
+            console.log(`AR Cabinet positioned: Floor to bottom = ${floorToBottomDistance.toFixed(2)}m, Height = ${cabinetHeight.toFixed(2)}m`);
             
             arScene.add(cabinetGroup);
             
@@ -1269,7 +1278,7 @@ async function createSimpleCabinetBlob() {
     });
 }
 
-// Create wood material with texture for AR
+// Create wood material with texture for AR (matching 3D model exactly)
 function createARWoodMaterial() {
     const material = new THREE.MeshStandardMaterial({
         color: getMaterialColor(cabinetDimensions.material),
@@ -1278,7 +1287,7 @@ function createARWoodMaterial() {
         side: THREE.DoubleSide
     });
 
-    // Create wood grain texture (same as 3D model)
+    // Create wood grain texture using EXACT same algorithm as 3D model
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -1287,21 +1296,18 @@ function createARWoodMaterial() {
     const imageData = context.createImageData(512, 512);
     const materialColor = getMaterialColor(cabinetDimensions.material);
     
+    // Use EXACT same algorithm as the 3D model's createPBRMaterials() function
     for (let i = 0; i < imageData.data.length; i += 4) {
         const x = (i / 4) % 512;
         const y = Math.floor((i / 4) / 512);
+        // Use the same noise formula as the 3D model
+        const noise = Math.sin(x * 0.02) * 0.1 + Math.random() * 0.1;
+        const baseColor = 220 + noise * 50;
         
-        // Create wood grain pattern
-        const noise = Math.sin(x * 0.01) * 0.1 + Math.sin(y * 0.02) * 0.05;
-        const grain = Math.sin(y * 0.1 + noise * 10) * 0.2;
-        
-        const r = Math.min(255, Math.max(0, (materialColor.r * 255) + grain * 50));
-        const g = Math.min(255, Math.max(0, (materialColor.g * 255) + grain * 40));
-        const b = Math.min(255, Math.max(0, (materialColor.b * 255) + grain * 30));
-        
-        imageData.data[i] = r;     // Red
-        imageData.data[i + 1] = g; // Green
-        imageData.data[i + 2] = b; // Blue
+        // Apply the material color in the same way
+        imageData.data[i] = baseColor * materialColor.r;     // Red
+        imageData.data[i + 1] = baseColor * materialColor.g; // Green
+        imageData.data[i + 2] = baseColor * materialColor.b; // Blue
         imageData.data[i + 3] = 255; // Alpha
     }
     
@@ -1313,43 +1319,45 @@ function createARWoodMaterial() {
     woodTexture.repeat.set(2, 2);
     
     material.map = woodTexture;
+    
+    console.log('🎨 AR Wood texture generated using exact same algorithm as 3D model');
     return material;
 }
 
-// Create detailed cabinet box structure for AR
+// Create detailed cabinet box structure for AR (exact same positioning as 3D model)
 function createARCabinetBox(parent, width, height, depth, thickness, material) {
-    // Back panel
+    // Back panel - exact same positioning logic as 3D model
     const backGeometry = new THREE.BoxGeometry(width, height, thickness);
     const back = new THREE.Mesh(backGeometry, material);
     back.position.set(0, height / 2, -depth / 2 + thickness / 2);
     parent.add(back);
 
-    // Left side panel
+    // Left side panel - exact same positioning logic as 3D model
     const leftGeometry = new THREE.BoxGeometry(thickness, height, depth);
     const left = new THREE.Mesh(leftGeometry, material);
     left.position.set(-width / 2 + thickness / 2, height / 2, 0);
     parent.add(left);
 
-    // Right side panel
+    // Right side panel - exact same positioning logic as 3D model
     const rightGeometry = new THREE.BoxGeometry(thickness, height, depth);
     const right = new THREE.Mesh(rightGeometry, material);
     right.position.set(width / 2 - thickness / 2, height / 2, 0);
     parent.add(right);
 
-    // Top panel
+    // Top panel - exact same positioning logic as 3D model
     const topGeometry = new THREE.BoxGeometry(width, thickness, depth);
     const top = new THREE.Mesh(topGeometry, material);
     top.position.set(0, height - thickness / 2, 0);
     parent.add(top);
 
-    // Bottom panel
+    // Bottom panel - exact same positioning logic as 3D model
     const bottomGeometry = new THREE.BoxGeometry(width, thickness, depth);
     const bottom = new THREE.Mesh(bottomGeometry, material);
     bottom.position.set(0, thickness / 2, 0);
     parent.add(bottom);
 }
 
-// Create door for AR
+// Create door for AR (exact same positioning as 3D model)
 function createARDoor(parent, width, height, depth, thickness, material) {
     const doorWidth = width - thickness * 2 - 0.001;
     const doorHeight = height - thickness * 2 - 0.001;
@@ -1357,15 +1365,17 @@ function createARDoor(parent, width, height, depth, thickness, material) {
     const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, thickness);
     const door = new THREE.Mesh(doorGeometry, material);
     
+    // Exact same positioning logic as 3D model
     door.position.set(0, height / 2, depth / 2 - thickness / 2);
     parent.add(door);
 }
 
-// Create door handle for AR
+// Create door handle for AR (exact same positioning as 3D model)
 function createARDoorHandle(parent, width, height, depth, thickness, handleMaterial) {
     const handleGeometry = new THREE.CylinderGeometry(0.006, 0.006, 0.1, 16);
     const doorHandle = new THREE.Mesh(handleGeometry, handleMaterial);
     
+    // Exact same positioning logic as 3D model (scaled to meters)
     doorHandle.position.set(
         width / 2 - thickness - 0.05,
         height / 2,
@@ -1374,7 +1384,7 @@ function createARDoorHandle(parent, width, height, depth, thickness, handleMater
     doorHandle.rotation.z = Math.PI / 2;
     parent.add(doorHandle);
     
-    // Handle caps
+    // Handle caps - exact same positioning logic as 3D model
     const capGeometry = new THREE.SphereGeometry(0.008, 16, 12);
     const leftCap = new THREE.Mesh(capGeometry, handleMaterial);
     leftCap.position.copy(doorHandle.position);
@@ -1601,9 +1611,19 @@ async function generateCabinetForAR() {
     createARDoor(cabinetGroup, width, height, depth, thickness, arPineMaterial);
     createARDoorHandle(cabinetGroup, width, height, depth, thickness, arHandleMaterial);
     
-    // Position cabinet at ground level for AR
-    // The AR system will handle floor detection and placement
-    cabinetGroup.position.y = 0;
+    // Position cabinet at same elevation as 3D model
+    // In 3D model: cabinet is positioned at (scaledCeiling - scaledHeight)
+    // Convert this to AR scale (meters)
+    const ceilingHeight = cabinetDimensions.ceilingHeight * 12 * 0.0254; // feet to meters
+    const cabinetHeight = height; // already in meters
+    
+    // Position cabinet to match 3D model: hanging from ceiling height
+    // For AR, we simulate the same positioning relative to a reference height
+    // Place cabinet bottom at the height it would be in the 3D scene
+    const floorToBottomDistance = ceilingHeight - cabinetHeight;
+    cabinetGroup.position.y = floorToBottomDistance;
+    
+    console.log(`AR Cabinet positioned: Floor to bottom = ${floorToBottomDistance.toFixed(2)}m, Height = ${cabinetHeight.toFixed(2)}m`);
     
     arScene.add(cabinetGroup);
     
@@ -1626,6 +1646,8 @@ async function generateCabinetForAR() {
             console.log('✅ Detailed AR model ready with proper dimensions and textures!');
             console.log(`Cabinet size in AR: ${cabinetDimensions.width}"W x ${cabinetDimensions.height}"H x ${cabinetDimensions.depth}"D`);
             console.log(`Material: ${cabinetDimensions.material}`);
+            console.log(`AR Cabinet elevation: ${floorToBottomDistance.toFixed(2)}m from floor (${(floorToBottomDistance * 39.37).toFixed(1)}" in inches)`);
+            console.log(`Ceiling height: ${ceilingHeight.toFixed(2)}m (${cabinetDimensions.ceilingHeight}ft)`);
             resolve(url);
         }, {
             binary: true,
